@@ -1,4 +1,7 @@
 
+# two data-frames ("nodes" and "links") are created, based on the "occuring_reactions"-list
+# these data-frames are needed to draw a diagram using the visNetwork-package
+
 # create empty data frames
 nodes <- data.frame(id=c(), label=c(), title=c(), group=c())
 links <- data.frame(from=c(), to=c())
@@ -50,29 +53,26 @@ model_diagram <- visNetwork(nodes, links)
 # set some general options
 model_diagram <- visOptions(model_diagram,
                            width = 1920, height = 1080,
-                           selectedBy = list(variable = "title")
+                           highlightNearest = list(enabled = TRUE, degree = list(from = 2, to = 2), algorithm = "hierarchical"),
+                           selectedBy = list(variable = "title", highlight = TRUE)
                            )
 
 # set diagram layout (igraph layout)
 # there are many options, e.g.: layout_nicely; _with_dh; with_gem; _as_tree (if you have a "non circled" setup); _with_lgl; merge_coords; normalize
 model_diagram <- visIgraphLayout(model_diagram, layout = "layout_with_dh")
 
-# global node customisation
-model_diagram <- visNodes(model_diagram,
-                          color = list(highlight = list(background = "orange", border = "darkred")))
-
 # node customisation per group
 # reactions
 model_diagram <- visGroups(model_diagram, groupname = "reaction",
                            shape = "dot",
                            size = 5,
-                           color = list(background = "lightblue", border="royalblue"),
+                           color = list(background = "lightblue", border="lightblue", highlight = list(background = "orange", border = "orange")),
                            shapeProperties = list(borderDashes = c(10,5)),
                            hidden=FALSE)
 # species
 model_diagram <- visGroups(model_diagram, groupname = "species",
                            shape = "box",
-                           color = list(background = "white", border="royalblue"),
+                           color = list(background = "white", border="royalblue", highlight = list(background = "orange", border = "darkred")),
                            shapeProperties = list(borderDashes = FALSE))
 
 # global links customisation
