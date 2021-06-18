@@ -83,4 +83,3 @@ model_diagram <- visEdges(model_diagram,
 
 # clear workspace: remove auxiliary variables
 rm(reaction, species, new_node, new_link, nodes, links)
-model_diagram
