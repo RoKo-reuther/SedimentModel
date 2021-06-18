@@ -1,4 +1,8 @@
 
+###########################################################################################################
+#                                           CONFIGURE MODEL HERE                                          #
+###########################################################################################################
+
 # define species / pools
   # create an entry in the following form for every species considered
   # "dummy_species"=list(abbreviation="dummy_species", name="dummy species", involved_in=list(), activated=TRUE)
@@ -232,81 +236,3 @@ reactions_collection <- list(
            activated=TRUE)
   )
   # E17 is missing!!!
-
-
-###########################################################################################################
-#                        DONT CHANGE ANYTHING BELOW HERE WITHOUT INTENDED PURPOSE                         #
-###########################################################################################################
-
-# Create list with occuring reactions and based on it list with occuring species.
-# Reactions can't occur if at least one educt is missing (required species defined in reactions_collection).
-# This can happen, if a species was disabled manually in species_collection (activated=FALSE).
-  
-# create empty lists
-occuring_reactions <- list()
-occuring_species <- list()
-
-# create "occuring_reactions"-list
-# go through reactions...
-for (reaction in reactions_collection){
-  # ...and check if reaction is activated
-  if (reaction$activated==TRUE){
-    # have a look at the required species (educts)
-    # and check whether the species required for the reaction are activated
-    # auxiliary variable checkup: are ALL required species activated?"
-    checkup <- TRUE
-    for (species in reaction$involved_species$educts){
-      if (species_collection[[species]]$activated==FALSE){
-        # checkup is set FALSE if at least one educt is deactivated
-        checkup <- FALSE
-      }
-    }
-    # use checkup to decide if reaction can be added to occuring_reactions-list
-    if (checkup==TRUE){
-      # add reaction to occuring_reactions-list...
-      occuring_reactions <- c(occuring_reactions, list(reaction))
-      # ...and set reaction name to make occuring_reactions-data clearer
-      names(occuring_reactions)[length(occuring_reactions)] <- reaction$abbreviation
-    }
-  } 
-}
-
-# create "occuring_species"-list
-# go through occuring reactions...
-for (reaction in occuring_reactions){
-  # add involved species to "occuring_species"-list, if it is not in yet and not manually deactivated
-  for (species in c(reaction$involved_species$educts, reaction$involved_species$products)){
-    if ((!exists(species, occuring_species))&(species_collection[[species]]$activated==TRUE)){
-      occuring_species <- c(occuring_species, species_collection[species])
-    }
-  }
-}
-
-# adjust "occuring_species$involved_in"-list and "occuring_reactions$involved_species"-list
-# go through occuring reactions...
-for (reaction in occuring_reactions){
-  for (species in c(reaction$involved_species$educts, reaction$involved_species$products)){
-    # check if species is in "occuring_species"-list
-    if (exists(species, occuring_species)){
-      # add occuring reactions to "occuring_species$involved_in"-list
-      occuring_species[[species]]$involved_in <- c(occuring_species[[species]]$involved_in, reaction$abbreviation)
-    }
-    else {
-      # delete not occuring species out of "occuring_reactions$involved_species"-list (that only can be products ensured by selection of occuring reactions)
-      occuring_reactions[[reaction$abbreviation]]$involved_species$products[species] <- NULL
-    }
-  }
-  # set species names in in "occuring_reactions$involved_species"-list to make this list clearer and enable to use "exists"-function later on
-  # take account for species type: go through "types" and per type through species by number
-  typen <- c("educts", "products")
-  for (type in typen){
-    # count educts / products and store number
-    number <- length(occuring_reactions[[reaction$abbreviation]]$involved_species[[type]])
-    for (i in seq_len(number)){
-      names(occuring_reactions[[reaction$abbreviation]]$involved_species[[type]])[i] <- occuring_reactions[[reaction$abbreviation]]$involved_species[[type]][[i]]
-    }
-  }
-}
-
-# clear workspace: remove auxiliary variables and collections
-rm(reactions_collection, species_collection, reaction, species, checkup, i, number, type, typen)

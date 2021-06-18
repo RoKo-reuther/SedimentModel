@@ -1,9 +1,17 @@
-### setting wd
+
+###########################################################################################################
+#                                           RUN MODEL FROM HERE                                           #
+###########################################################################################################
+
+
+### TODO: set working directory
   setwd("/home/robert/Dokumente/SedimentModel")
   wd_path <- getwd()
 
-### load model-setup
-  source("01_model_setup.R")
+### set up model
+  source("01_model_setup_config.R")
+  source("01_model_setup_func.R")
+  
 
 ### create diagram
   source("02_draw_diagram.R")
