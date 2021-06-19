@@ -10,7 +10,7 @@
 
 ### set up model
   ## set up the chemical base: occuring species and reactions, create a diagram and have a look at it
-    source("011_chemical_bas_config.R")
+    source("011_chemical_base_config.R")
     source("012_chemical_base_func.R")
     source("013_chemical_base_draw_diagram.R")
       # export to html-file: requires "pandoc"
@@ -18,5 +18,4 @@
       # view in RStudio
       model_diagram
     
-  ## set up model grid
   

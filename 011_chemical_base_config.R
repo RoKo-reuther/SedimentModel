@@ -11,7 +11,7 @@ species_collection <- list(
   "OM"=list(abbreviation="OM", name="organic matter", involved_in=list(), activated=TRUE),
   "O2"=list(abbreviation="O2", name="oxygen", involved_in=list(), activated=TRUE),
   "CO2"=list(abbreviation="CO2", name="carbon dioxide", involved_in=list(), activated=TRUE),
-  "NH4+"=list(abbreviation="NH4+", name="ammonium", involved_in=list(), activated=TRUE),
+  "NH4+"=list(abbreviation="NH4+", name="ammonium", involved_in=list(), activated=FALSE),
   "PO4"=list(abbreviation="PO4", name="phosphate (pool)", involved_in=list(), activated=TRUE),
   "NO3-"=list(abbreviation="NO3-", name="nitrate", involved_in=list(), activated=TRUE),
   "N2"=list(abbreviation="N2", name="nitrogen", involved_in=list(), activated=TRUE),
@@ -29,8 +29,7 @@ species_collection <- list(
   "SO42-"=list(abbreviation="SO42-", name="sulphate", involved_in=list(), activated=TRUE),
   "H2S"=list(abbreviation="H2S", name="hydrogen sulphate (pool)", involved_in=list(), activated=TRUE),
   "CH4"=list(abbreviation="CH4", name="methane", involved_in=list(), activated=TRUE),
-  "DIC"=list(abbreviation="DIC", name="dissolved inorganic carbon", involved_in=list(), activated=TRUE),
-  "S0"=list(abbreviation="S0", name="elemental sulphur", involved_in=list(), activated=TRUE)
+  "DIC"=list(abbreviation="DIC", name="dissolved inorganic carbon", involved_in=list(), activated=TRUE)
   )
 
 
@@ -99,7 +98,7 @@ reactions_collection <- list(
           reaction_rate=NA,
           involved_species=list(educts=list("O2", "Fe2+", "DIC"), products=list("Fe(OH)3")),
           reversibel=FALSE,
-          activated=FALSE),
+          activated=TRUE),
   E9b=list(abbreviation="E9b",
           name="Fe(OH)3PO4 formation",
           reaction_rate=NA,
@@ -123,7 +122,7 @@ reactions_collection <- list(
           reaction_rate=NA,
           involved_species=list(educts=list("Fe(OH)3", "H2S", "CO2"), products=list("Fe2+", "S0", "DIC")),
           reversibel=FALSE,
-          activated=FALSE),
+          activated=TRUE),
   E14a2=list(abbreviation="E14a2",
              name="FePa-reduction coupled to sulphide oxidation",
              reaction_rate=NA,
@@ -135,7 +134,7 @@ reactions_collection <- list(
              reaction_rate=NA,
              involved_species=list(educts=list("Fe2+", "H2S"), products=list("FeS")),
              reversibel=FALSE,
-             activated=FALSE),
+             activated=TRUE),
   E19=list(abbreviation="E19",
              name="SO4-reduction coupled to AOM",
              reaction_rate=NA,
@@ -213,7 +212,7 @@ reactions_collection <- list(
            reaction_rate=NA,
            involved_species=list(educts=list("O2", "FeS"), products=list("SO42-", "Fe2+")),
            reversibel=FALSE,
-           activated=FALSE),
+           activated=TRUE),
   E11=list(abbreviation="E11",
            name="FeS2 dissolution",
            reaction_rate=NA,
