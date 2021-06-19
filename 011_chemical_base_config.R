@@ -46,7 +46,9 @@ species_collection <- list(
 reactions_collection <- list(
   E1=list(abbreviation="E1",
           name="Aerobic OM mineralisation",
-          involved_species=list(educts=list("OM", "O2"), products=list("CO2", "NH4+", "PO4")),
+          involved_species=list(
+            educts=list("OM"=list(abbreviation="OM", stoic=1), "O2" = list(abbreviation="O2", stoic=1)), 
+            products=list("CO2"=list(abbreviation="CO2", stoic=1), "NH4+"=list(abbreviation="NH4+", stoic=1), "PO4"=list(abbreviation="PO4", stoic=1))),
           reaction_rate_constants = list(towards = list(alpha = "k_alpha", beta = "k_beta")),
           reaction_rates = list(towards = list(R1a = function(){k_alpha * OrgCA * O2 / (K_mO2 + O2)}, R1b =function() {k_beta  * OrgCB * O2 / (K_mO2 + O2)})),
           reversibel=FALSE,

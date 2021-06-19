@@ -16,6 +16,7 @@ for (reaction in occuring_reactions){
 # create and attach nodes for species and links between species- and reaction-nodes
   for (species in c(reaction$involved_species$educts, reaction$involved_species$products)){
     # new "species-node", if it does not exist yet
+    species <- species$abbreviation
     if (any(nodes==species)==FALSE){
       new_node <- data.frame(id=c(species), label=c(species), title=c(species), group=c("species"))
       nodes <- rbind(nodes, new_node)

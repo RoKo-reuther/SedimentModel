@@ -48,7 +48,7 @@ create_orl <- function(){
       # auxiliary variable checkup: are ALL required species activated?"
       checkup <- TRUE
       for (species in reaction$involved_species$educts){
-        if (species_collection[[species]]$activated==FALSE){
+        if (species_collection[[species$abbreviation]]$activated==FALSE){
           # checkup is set FALSE if at least one educt is deactivated
           checkup <- FALSE
         }
@@ -79,8 +79,8 @@ create_osl <- function(){
   for (reaction in occuring_reactions){
     # add involved species to "occuring_species"-list, if it is not in yet and not manually deactivated
     for (species in c(reaction$involved_species$educts, reaction$involved_species$products)){
-      if ((!exists(species, occuring_species))&(species_collection[[species]]$activated==TRUE)){
-        occuring_species <<- c(occuring_species, species_collection[species])
+      if ((!exists(species$abbreviation, occuring_species))&(species_collection[[species$abbreviation]]$activated==TRUE)){
+        occuring_species <<- c(occuring_species, species_collection[species$abbreviation])
       }
     }
   }
@@ -94,30 +94,19 @@ create_osl()
 # adjust "occuring_species$involved_in"-list and "occuring_reactions$involved_species"-list
 # 1) add occuring reactions to "occuring_species$involved_in"-list
 # 2) delete not occuring species out of "occuring_reactions$involved_species"-list
-# 3) set species names in in "occuring_reactions$involved_species"-list
 
 adjust_lists <- function(){
   # go through occuring reactions...
   for (reaction in occuring_reactions){
     for (species in c(reaction$involved_species$educts, reaction$involved_species$products)){
       # check if species is in "occuring_species"-list
-      if (exists(species, occuring_species)){
+      if (exists(species$abbreviation, occuring_species)){
         # add occuring reactions to "occuring_species$involved_in"-list
-        occuring_species[[species]]$involved_in <<- c(occuring_species[[species]]$involved_in, reaction$abbreviation)
+        occuring_species[[species$abbreviation]]$involved_in <<- c(occuring_species[[species$abbreviation]]$involved_in, reaction$abbreviation)
       }
       else {
         # delete not occuring species out of "occuring_reactions$involved_species"-list (that only can be products ensured by selection of occuring reactions)
-        occuring_reactions[[reaction$abbreviation]]$involved_species$products[species] <<- NULL ###!funzt gerade noch nicht, weil name erst nachher gesetzt wird
-      }
-    }
-    # set species names in in "occuring_reactions$involved_species"-list to make this list clearer and enable to use "exists"-function later on
-    # take account for species type: go through "types" and per type through species by number
-    typen <- c("educts", "products")
-    for (type in typen){
-      # count educts / products and store number
-      number <- length(occuring_reactions[[reaction$abbreviation]]$involved_species[[type]])
-      for (i in seq_len(number)){
-        names(occuring_reactions[[reaction$abbreviation]]$involved_species[[type]])[i] <<- occuring_reactions[[reaction$abbreviation]]$involved_species[[type]][[i]]
+        occuring_reactions[[reaction$abbreviation]]$involved_species$products[species$abbreviation] <<- NULL ###!funzt gerade noch nicht, weil name erst nachher gesetzt wird
       }
     }
   }
