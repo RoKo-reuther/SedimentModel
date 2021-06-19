@@ -1,11 +1,12 @@
 
 ###########################################################################################################
-#                                           CONFIGURE MODEL HERE                                          #
+#                                       CONFIGURE CHEMICAL BASE HERE                                      #
 ###########################################################################################################
 
 # define species / pools
   # create an entry in the following form for every species considered
   # "dummy_species"=list(abbreviation="dummy_species", name="dummy species", involved_in=list(), activated=TRUE)
+
 species_collection <- list(
   "OM"=list(abbreviation="OM", name="organic matter", involved_in=list(), activated=TRUE),
   "O2"=list(abbreviation="O2", name="oxygen", involved_in=list(), activated=TRUE),
@@ -32,6 +33,8 @@ species_collection <- list(
   "S0"=list(abbreviation="S0", name="elemental sulphur", involved_in=list(), activated=TRUE)
   )
 
+
+
 # define reactions
   # create an list entry in the following form for every reaction considered; reagents and products have to named by defined abbreviation (see section above)
   # E_dummy=list(abbreviation="E_dummy"
@@ -44,8 +47,9 @@ species_collection <- list(
 reactions_collection <- list(
   E1=list(abbreviation="E1",
           name="Aerobic OM mineralisation",
-          reaction_rate=NA,
           involved_species=list(educts=list("OM", "O2"), products=list("CO2", "NH4+", "PO4")),
+          reaction_rate_constants = list(towards = list(alpha = "k_alpha", beta = "k_beta")),
+          reaction_rates = list(towards = list(R1a = function(){k_alpha * OrgCA * O2 / (K_mO2 + O2)}, R1b =function() {k_beta  * OrgCB * O2 / (K_mO2 + O2)})),
           reversibel=FALSE,
           activated=TRUE),
   E2=list(abbreviation="E2",

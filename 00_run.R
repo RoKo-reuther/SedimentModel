@@ -9,16 +9,14 @@
   wd_path <- getwd()
 
 ### set up model
-  source("01_model_setup_config.R")
-  source("01_model_setup_func.R")
-  
-
-### create diagram
-  source("02_draw_diagram.R")
-  
-  # export to html-file: requires "pandoc"
-  visSave(model_diagram, file=paste(wd_path, "/exports/interactive_diagram/model.html", sep=""), selfcontained=TRUE, background="white")
-  
-  # view in RStudio
-  model_diagram
+  ## set up the chemical base: occuring species and reactions, create a diagram and have a look at it
+    source("011_chemical_bas_config.R")
+    source("012_chemical_base_func.R")
+    source("013_chemical_base_draw_diagram.R")
+      # export to html-file: requires "pandoc"
+      visSave(model_diagram, file=paste(wd_path, "/exports/interactive_diagram/model.html", sep=""), selfcontained=TRUE, background="white")
+      # view in RStudio
+      model_diagram
+    
+  ## set up model grid
   
