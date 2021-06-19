@@ -43,6 +43,9 @@ for (reaction in occuring_reactions){
   }
 }
 
+# order "nodes"-data-frame by groups -> selection-menu in diagram will be structured
+nodes <- nodes[order(nodes$group), ]
+
 ###########################################################################################################
 
 library("visNetwork")
@@ -54,7 +57,7 @@ model_diagram <- visNetwork(nodes, links)
 model_diagram <- visOptions(model_diagram,
                            width = 1920, height = 1080,
                            highlightNearest = list(enabled = TRUE, degree = list(from = 2, to = 2), algorithm = "hierarchical"),
-                           selectedBy = list(variable = "title", highlight = TRUE)
+                           selectedBy = list(variable = "title", highlight = TRUE, sort = FALSE)
                            )
 
 # set diagram layout (igraph layout)
