@@ -22,24 +22,16 @@ for (reaction in occuring_reactions){
       nodes <- rbind(nodes, new_node)
     }
     # new link(s)
-    # check if it is a reversible reaction
-    if (reaction$reversibel==TRUE){
-      # create links in both directions
-      new_link <- data.frame(from=c(species, reaction$abbreviation), to=c(reaction$abbreviation, species))
+    # check if current species is educt
+    if (exists(species, reaction$involved_species$educts)){
+      # create new link: species -> reaction
+      new_link <- data.frame(from=c(species), to=c(reaction$abbreviation))
       links <- rbind(links, new_link)
     }
-    else {
-      # check if current species is educt
-      if (exists(species, reaction$involved_species$educts)){
-        # create new link: species -> reaction
-        new_link <- data.frame(from=c(species), to=c(reaction$abbreviation))
-        links <- rbind(links, new_link)
-      }
-      else{
-        # create link: reaction -> species
-        new_link <- data.frame(from=c(reaction$abbreviation), to=c(species))
-        links <- rbind(links, new_link)
-      }
+    else{
+      # create link: reaction -> species
+      new_link <- data.frame(from=c(reaction$abbreviation), to=c(species))
+      links <- rbind(links, new_link)
     }
   }
 }

@@ -5,36 +5,33 @@
 
 
 #*************************************
-# select reactions by name
+# main func
 #*************************************
-# use this function to create model with only explicitly named reactions in a list
-# how to use:
-# 1) load create_orl(), create_osl(), adjust_lists() and this function
-# 2) then run e.g. set_reactions_by_name(list("E1", "E2"))
-set_reactions_by_name <- function(reaction_list){
-  source("011_chemical_base_config.R")
-  for (reaction in reactions_collection){
-    if (any(reaction_list==reaction$abbreviation)){
-      # do nothing
-    }
-    else {
-      reactions_collection[[reaction$abbreviation]]$activated <<- FALSE
+chemical_base_main <- function(specify=FALSE, reaction_list){
+  # load parameters to function environment
+  source(file="01_parameters_config.R", local=TRUE)
+  source(file="021_chemical_base_config.R", local=TRUE)
+  
+  # use this arguments to create model with only explicitly named reactions
+  # e.g. chemical_base_main(specify=TRUE, list("E1", "E9b"))
+  if (specify ==TRUE) {
+    for (reaction in reactions_collection){
+      if (any(reaction_list==reaction$abbreviation)){
+        # do nothing
+      }
+      else {
+        reactions_collection[[reaction$abbreviation]]$activated <- FALSE
+      }
     }
   }
-  create_orl()
-  create_osl()
-  adjust_lists()
-}
 
-
-#*************************************
-# create "occuring_reactions"-list
-#*************************************
-# Create list with occuring reactions based on activated reactions and species in "01_model_setup_config"-script.
-# Reactions can't occur if at least one educt is missing (required species defined in reactions_collection).
-# This can happen, if a species was disabled manually in species_collection (activated=FALSE).
-
-create_orl <- function(){
+  #*************************************
+  # create "occuring_reactions"-list
+  #*************************************
+  # Create list with occuring reactions based on activated reactions and species in "01_model_setup_config"-script.
+  # Reactions can't occur if at least one educt is missing (required species defined in reactions_collection).
+  # This can happen, if a species was disabled manually in species_collection (activated=FALSE).
+  
   # create empty list
   occuring_reactions <<- list()
   
@@ -62,16 +59,13 @@ create_orl <- function(){
       }
     } 
   }
-}
-create_orl()
 
 
-#*************************************
-# create "occuring_species"-list
-#*************************************
-# Create list with occuring species based on occuring-reactions list.
-
-create_osl <- function(){
+  #*************************************
+  # create "occuring_species"-list
+  #*************************************
+  # Create list with occuring species based on occuring-reactions list.
+  
   # create empty list
   occuring_species <<- list()
   
@@ -84,18 +78,15 @@ create_osl <- function(){
       }
     }
   }
-}
-create_osl()
 
 
-#*************************************
-# adjust created lists
-#*************************************
-# adjust "occuring_species$involved_in"-list and "occuring_reactions$involved_species"-list
-# 1) add occuring reactions to "occuring_species$involved_in"-list
-# 2) delete not occuring species out of "occuring_reactions$involved_species"-list
+  #*************************************
+  # adjust created lists
+  #*************************************
+  # adjust "occuring_species$involved_in"-list and "occuring_reactions$involved_species"-list
+  # 1) add occuring reactions to "occuring_species$involved_in"-list
+  # 2) delete not occuring species out of "occuring_reactions$involved_species"-list
 
-adjust_lists <- function(){
   # go through occuring reactions...
   for (reaction in occuring_reactions){
     for (species in c(reaction$involved_species$educts, reaction$involved_species$products)){
@@ -106,16 +97,17 @@ adjust_lists <- function(){
       }
       else {
         # delete not occuring species out of "occuring_reactions$involved_species"-list (that only can be products ensured by selection of occuring reactions)
-        occuring_reactions[[reaction$abbreviation]]$involved_species$products[species$abbreviation] <<- NULL ###!funzt gerade noch nicht, weil name erst nachher gesetzt wird
+        occuring_reactions[[reaction$abbreviation]]$involved_species$products[species$abbreviation] <<- NULL
       }
     }
   }
 }
-adjust_lists()
 
+chemical_base_main(specify=TRUE, list("E1", "E9b"))
+#chemical_base_main()
 
 #***************************
 # clean_up
 #***************************
 # clear workspace: remove auxiliary variables and collections
-rm(reactions_collection, species_collection, create_orl, create_osl, adjust_lists, set_reactions_by_name)
+rm(chemical_base_main)

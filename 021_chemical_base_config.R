@@ -5,53 +5,74 @@
 
 # define species / pools
   # create an entry in the following form for every species considered
+  # NOTE: define two reaction-rate-equations in "reactions_collection" corresponding to the order the subspecies are mentioned here!!!
   # "dummy_species"=list(abbreviation="dummy_species", name="dummy species", involved_in=list(), activated=TRUE)
 
 species_collection <- list(
-  "OM"=list(abbreviation="OM", name="organic matter", involved_in=list(), activated=TRUE),
-  "O2"=list(abbreviation="O2", name="oxygen", involved_in=list(), activated=TRUE),
-  "CO2"=list(abbreviation="CO2", name="carbon dioxide", involved_in=list(), activated=TRUE),
-  "NH4+"=list(abbreviation="NH4+", name="ammonium", involved_in=list(), activated=FALSE),
-  "PO4"=list(abbreviation="PO4", name="phosphate (pool)", involved_in=list(), activated=TRUE),
-  "NO3-"=list(abbreviation="NO3-", name="nitrate", involved_in=list(), activated=TRUE),
-  "N2"=list(abbreviation="N2", name="nitrogen", involved_in=list(), activated=TRUE),
-  "MnO2"=list(abbreviation="MnO2", name="manganese di-oxide", involved_in=list(), activated=TRUE),
-  "Mn2+"=list(abbreviation="Mn2+", name="manganese", involved_in=list(), activated=TRUE),
-  "MnCO3"=list(abbreviation="MnCO3", name="manganese carbonate", involved_in=list(), activated=TRUE),
-  "Fe(OH)3"=list(abbreviation="Fe(OH)3", name="iron hydroxide", involved_in=list(), activated=TRUE),
-  "Fe(OH)3PO4"=list(abbreviation="Fe(OH)3PO4", name="iron bound phosphorous", involved_in=list(), activated=TRUE),
-  "Fe2+"=list(abbreviation="Fe2+", name="iron", involved_in=list(), activated=TRUE),
-  "FeCO3"=list(abbreviation="FeCO3", name="iron carbonate (siderite)", involved_in=list(), activated=TRUE),
-  "Fe3(PO4)2"=list(abbreviation="Fe3(PO4)2", name="ferrous phosphate (vivianite)", involved_in=list(), activated=TRUE),
-  "FeS"=list(abbreviation="FeS", name="iron mono-sulphide", involved_in=list(), activated=TRUE),
-  "FeS2"=list(abbreviation="FeS2", name="iron di-sulphide (pyrite)", involved_in=list(), activated=TRUE),
-  "S0"=list(abbreviation="S0", name="elemental sulphur", involved_in=list(), activated=TRUE),
-  "SO42-"=list(abbreviation="SO42-", name="sulphate", involved_in=list(), activated=TRUE),
-  "H2S"=list(abbreviation="H2S", name="hydrogen sulphate (pool)", involved_in=list(), activated=TRUE),
-  "CH4"=list(abbreviation="CH4", name="methane", involved_in=list(), activated=TRUE),
-  "DIC"=list(abbreviation="DIC", name="dissolved inorganic carbon", involved_in=list(), activated=TRUE)
+  "OM"=list(abbreviation="OM", name="organic matter", subspecies=list("OrgCA", "OrgCB"), involved_in=list(), phase="solid", activated=TRUE),
+  "O2"=list(abbreviation="O2", name="oxygen", involved_in=list(), phase="solute", activated=TRUE),
+  "CO2"=list(abbreviation="CO2", name="carbon dioxide", involved_in=list(), phase="solute", activated=FALSE), # keep it???
+  "NH4"=list(abbreviation="NH4", name="ammonium", involved_in=list(), phase="solute", activated=TRUE),
+  "PO4"=list(abbreviation="PO4", name="phosphate (pool)", involved_in=list(), phase="solute", activated=TRUE),
+  "NO3"=list(abbreviation="NO3", name="nitrate", involved_in=list(), phase="solute", activated=TRUE),
+  "N2"=list(abbreviation="N2", name="nitrogen", involved_in=list(), phase="solute", activated=TRUE),
+  "MnO2"=list(abbreviation="MnO2", name="manganese di-oxide", involved_in=list(), phase="solid", activated=TRUE),
+  "Mn2"=list(abbreviation="Mn2", name="manganese", involved_in=list(), phase="solute", activated=TRUE),
+  "MnCO3"=list(abbreviation="MnCO3", name="manganese carbonate", involved_in=list(), phase="solid", activated=TRUE),
+  "Fe(OH)3"=list(abbreviation="Fe(OH)3", name="iron hydroxide", involved_in=list(), phase="solid", activated=TRUE),
+  "FeP"=list(abbreviation="FeP", name="iron bound phosphorous", involved_in=list(), phase="solid", activated=TRUE),
+  "Fe"=list(abbreviation="Fe", name="iron", involved_in=list(), phase="solute", activated=TRUE),
+  "FeCO3"=list(abbreviation="FeCO3", name="iron carbonate (siderite)", involved_in=list(), phase="solid", activated=TRUE),
+  "Fe3(PO4)2"=list(abbreviation="Fe3(PO4)2", name="ferrous phosphate (vivianite)", involved_in=list(), phase="solid", activated=TRUE),
+  "FeS"=list(abbreviation="FeS", name="iron mono-sulphide", involved_in=list(), phase="solid", activated=TRUE),
+  "FeS2"=list(abbreviation="FeS2", name="iron di-sulphide (pyrite)", involved_in=list(), phase="solid", activated=TRUE),
+  "S0"=list(abbreviation="S0", name="elemental sulphur", involved_in=list(), phase="solid", activated=TRUE),
+  "SO4"=list(abbreviation="SO4", name="sulphate", involved_in=list(), phase="solute", activated=TRUE),
+  "H2S"=list(abbreviation="H2S", name="hydrogen sulphate (pool)", involved_in=list(), phase="solute", activated=TRUE),
+  "CH4"=list(abbreviation="CH4", name="methane", involved_in=list(), phase="solute", activated=TRUE),
+  "HCO3"=list(abbreviation="HCO3", name="dissolved inorganic carbon", involved_in=list(), phase="solute", activated=TRUE)
   )
 
 
+# define "shared" reaction rate constants and other constants, that are used in more than one reaction: aim: have one place to change value
+  # e.g. all OM-degradation reactions use the same decay constants and the same limiting saturation concentrations
+shared_reaction_constants <- list(
+  om_degradation=list(k_alpha=list(value=0.05, u_unit="/y"),
+                      k_beta=list(value=0.0086, u_unit="/y"),
+                      K_mO2=list(value=1e-3, u_unit="mol/m3_pw"),
+                      K_mNO3=list(value=4e-3, u_unit="mol/m3_pw"),
+                      K_mMnO2=list(value=20e-2*dens_dw, u_unit="mol/m3_sf"),
+                      K_mFeOH3=list(value=65e-2*dens_dw, u_unit="mol/m3_sf"),
+                      K_mSO4=list(value=1.6e-3, u_unit="mol/m3_pw")
+                      ),
+  PO4_coprecipitation=list(K_PO4=list(value=1e-2, u_unit="mol/m3_pw"))
+)
+
+
+# define shared chemical regulation terms (e.g. Michaelis-Menten approaches, saturation indeces)
+shared_regulation_terms <- list(
+  #PO4 adsoprtion/co-precipitation factor proportional to PO4 concentration; much PO4 then R#_P, otherwise R#_Ox
+  D_PO4="PO4/(K_PO4 + PO4)"      #Ratio so no unit
+)
 
 # define reactions
-  # create an list entry in the following form for every reaction considered; reagents and products have to named by defined abbreviation (see section above)
-  # E_dummy=list(abbreviation="E_dummy"
-  #              ,name="dummy reaction",
-  #              reaction_rate=X,
-  #              involved_species=list(educts=list("E1", "E2"), products=list("P1", "P2")),
-  #              reversibel=FALSE,
-  #              activated=TRUE)
+# create an list entry in the following form for every reaction considered; reagents and products have to named by defined abbreviation (see section above)
+# E_dummy=list(abbreviation="E_dummy"
+#              ,name="dummy reaction",
+#              reaction_rate=X,
+#              involved_species=list(educts=list("E1", "E2"), products=list("P1", "P2")),
+#              reversibel=FALSE,
+#              activated=TRUE)
   
 reactions_collection <- list(
   E1=list(abbreviation="E1",
           name="Aerobic OM mineralisation",
           involved_species=list(
             educts=list("OM"=list(abbreviation="OM", stoic=1), "O2" = list(abbreviation="O2", stoic=1)), 
-            products=list("CO2"=list(abbreviation="CO2", stoic=1), "NH4+"=list(abbreviation="NH4+", stoic=1), "PO4"=list(abbreviation="PO4", stoic=1))),
-          reaction_rate_constants = list(towards = list(alpha = "k_alpha", beta = "k_beta")),
-          reaction_rates = list(towards = list(R1a = function(){k_alpha * OrgCA * O2 / (K_mO2 + O2)}, R1b =function() {k_beta  * OrgCB * O2 / (K_mO2 + O2)})),
-          reversibel=FALSE,
+            products=list("CO2"=list(abbreviation="CO2", stoic=1), "NH4"=list(abbreviation="NH4", stoic=1*(1/CtoN)), "PO4"=list(abbreviation="PO4", stoic=1*(1/CtoP)))),
+          reaction_rate_constants=shared_reaction_constants$om_degradation[1:3],
+          reaction_rates=list(equations=list(R1a="k_alpha * OrgCA * O2 / (K_mO2 + O2)", R1b="k_beta  * OrgCB * O2 / (K_mO2 + O2)"), u_unit="mol/V_sf/y"),
+          varying_rates="OM",
           activated=TRUE),
   E2=list(abbreviation="E2",
           name="Denitrification coupled to OM degradation",
@@ -74,7 +95,7 @@ reactions_collection <- list(
   E4b=list(abbreviation="E4b",
            name="FeOx reduction (using FeP) coupled to OM degradation",
            reaction_rate=NA,
-           involved_species=list(educts=list("OM", "Fe(OH)3PO4"), products=list("CO2", "NH4+", "PO4", "Fe2+")),
+           involved_species=list(educts=list("OM", "FeP"), products=list("CO2", "NH4+", "PO4", "Fe2+")),
            reversibel=FALSE,
            activated=TRUE),
   E5=list(abbreviation="E5",
@@ -103,9 +124,11 @@ reactions_collection <- list(
           activated=TRUE),
   E9b=list(abbreviation="E9b",
           name="Fe(OH)3PO4 formation",
-          reaction_rate=NA,
-          involved_species=list(educts=list("O2", "Fe2+", "DIC", "PO4"), products=list("Fe(OH)3PO4", "CO2")),
-          reversibel=FALSE,
+          involved_species=list(
+            educts=list("O2"=list(abbreviation="O2", stoic=1), "Fe"=list(abbreviation="Fe", stoic=1), "HCO3"=list(abbreviation="HCO3", stoic=8), "PO4"=list(abbreviation="PO4", stoic=4*chi_FeOxA)),
+            products=list("FeP"=list(abbreviation="FeP", stoic=4), "CO2"=list(abbreviation="CO2", stoic=8))),
+          reaction_rate_constants=list(k2=list(value=1.4e5*1e-3 , u_unit="m3 mol-1 y-1"), K_PO4=shared_reaction_constants$PO4_coprecipitation$K_PO4),
+          reaction_rates=list(equations=list(R5_P="k2 * O2 * Fe * D_PO4"), u_unit="mol/V_pw/y"),
           activated=TRUE),
   E12=list(abbreviation="E12",
           name="H2S oxidation",
@@ -128,7 +151,7 @@ reactions_collection <- list(
   E14a2=list(abbreviation="E14a2",
              name="FePa-reduction coupled to sulphide oxidation",
              reaction_rate=NA,
-             involved_species=list(educts=list("Fe(OH)3PO4", "H2S", "CO2"), products=list("Fe2+", "PO4", "S0", "DIC")),
+             involved_species=list(educts=list("FeP", "H2S", "CO2"), products=list("Fe2+", "PO4", "S0", "DIC")),
              reversibel=FALSE,
              activated=TRUE),
   E15=list(abbreviation="E15",
@@ -164,7 +187,7 @@ reactions_collection <- list(
   E29a2=list(abbreviation="E29a2",
              name="MnO2A reduction coupled to Fe(P) oxidation",
              reaction_rate=NA,
-             involved_species=list(educts=list("MnO2", "PO4", "Fe2+"), products=list("Mn2+", "Fe(OH)3PO4")),
+             involved_species=list(educts=list("MnO2", "PO4", "Fe2+"), products=list("Mn2+", "FeP")),
              reversibel=FALSE,
              activated=TRUE),
   E30a=list(abbreviation="E30a",
