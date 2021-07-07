@@ -43,9 +43,10 @@ grid_setup <- function(){
   for (i in seq_along(occuring_species)){
     if (occuring_species[[i]]$phase == "solute"){
       name <- occuring_species[[i]]$abbreviation # species name
+      name_diffcoeff <- occuring_species[[i]]$abbr_diffcoeff # species name
       # calculate diffusion coefficients [m2/yr]; diffcoeff returns ionic diffusion coefficients in m2/s
-      Dmol.X <- diffcoeff(S = S, t = TC, P = P, species = name)[[name]] * sectoyr/tort
-      # and attach DX.grid to return collection
+      Dmol.X <- diffcoeff(S = S, t = TC, P = P, species = name_diffcoeff)[[name_diffcoeff]] * sectoyr/tort
+      # and attach DX.grid to "grid_collection"-list
       DX.grid <- setup.prop.1D(value = Dmol.X + Db,  grid = grid)
       name <- paste("D", name, ".grid", sep = "") # list name, e.g. DO2.grid
       grid_collection[[name]] <- DX.grid
