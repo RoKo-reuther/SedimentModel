@@ -64,14 +64,14 @@ Model <- function(t, state, pars) {
     # define boundary conditions (concentrations for solutes and fluxes for solids)
     O2_top       <- (O2_top + O2_Add)*O2_Trans         
     SO4_top      <- (SO4_top + SO4_Add)*SO4_Trans  
-    Fe_top       <- (Fe_top + Fe_Add)*Fe_Trans    
-    Mn_top       <- (Mn_top + Mn_Add)*Mn_Trans  
+    Fe_2_top       <- (Fe_top + Fe_Add)*Fe_Trans    
+    Mn_2_top       <- (Mn_top + Mn_Add)*Mn_Trans  
     H2S_top      <- (H2S_top + H2S_Add)*H2S_Trans   
     CH4_top      <- (CH4_top + CH4_Add)*CH4_Trans   
     NH4_top      <- (NH4_top + NH4_Add)*NH4_Trans   
     NO3_top      <- (NO3_top + NO3_Add)*NO3_Trans   
     PO4_top      <- (PO4_top + PO4_Add)*PO4_Trans   
-    HCO3_top      <- (DIC_top + DIC_Add)*DIC_Trans 
+    DIC_top      <- (DIC_top + DIC_Add)*DIC_Trans 
     N2_top       <- (N2_top + N2_Add)*N2_Trans 
     F_OrgCA       <- (F_OrgA + OrgA_Add)*OrgA_Trans
     F_OrgCB       <- (F_OrgB + OrgB_Add)*OrgB_Trans  

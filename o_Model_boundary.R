@@ -5,7 +5,7 @@
 #boundary SWI concentrations for solutes [mol m-3]
 O2_top          <- 1*0.25     # O2  
 SO4_top         <- 8          # SO4  
-Fe_top          <- 0         # Fe   
+Fe_top          <- 0          # Fe   
 Mn_top          <- 0          # Mn2+ 
 H2S_top         <- 0          # H2S  
 CH4_top         <- 0          # CH4  

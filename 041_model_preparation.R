@@ -102,8 +102,8 @@ create_model_lists <- function(){
   # 5.4) define reaction terms: build RX-term for each species
   
   # Conversion factors: needed for reaction terms
-  q <- 2 #svf.grid$mid / por.grid$mid, # from 1/svf to 1/por; solid to aqeaous
-  r <- 3 #por.grid$mid / svf.grid$mid # from 1/por to 1/svf; aqeous to solid
+  q <- mean(grid_collection$svf.grid$mid / grid_collection$por.grid$mid) # from 1/svf to 1/por; solid to aqeaous
+  r <- mean(grid_collection$por.grid$mid / grid_collection$svf.grid$mid) # from 1/por to 1/svf; aqeous to solid
   
   for (species in species_operational){
     
@@ -130,13 +130,9 @@ create_model_lists <- function(){
       
       # check if/which conversion factor is needed
       # if species is solute and unit of reaction rate is "mol/V_sf/y" -> q; if species is solid and unit of reaction rate is "mol/V_pw/y" -> r
-      if ((species$phase=="solute")&(occuring_reactions[[element]]$reaction_rates$u_unit=="mol/V_sf/y")){
-        factor <- q
-      }
-      else if ((species$phase=="solid")&(occuring_reactions[[element]]$reaction_rates$u_unit=="mol/V_pw/y")){
-        factor <- r
-      }
-      else factor <- 1
+      if ((species$phase=="solute")&(occuring_reactions[[element]]$reaction_rates$u_unit=="mol/V_sf/y")) conversion <- q
+      else if ((species$phase=="solid")&(occuring_reactions[[element]]$reaction_rates$u_unit=="mol/V_pw/y")) conversion <- r
+      else conversion <- 1
       
       # get reaction rate name(s)
       # does reaction occur with two different rates, depending on this species? (e.g. different degrees of degradability of organic matter)
@@ -158,7 +154,7 @@ create_model_lists <- function(){
       }
       
       # create summand for this reaction ...
-      content_part <- paste(ifelse(educt, "-", "+"), factor, "*", stoic, "*", "(", reaction_rates, ")", sep="")
+      content_part <- paste(ifelse(educt, "-", "+"), conversion, "*", stoic, "*", "(", reaction_rates, ")", sep="")
       # ... and add it to "var-content"-variable
       var_content <- paste(var_content, content_part, sep="")
     }

@@ -103,8 +103,8 @@ chemical_base_main <- function(specify=FALSE, reaction_list){
   }
 }
 
-chemical_base_main(specify=TRUE, list("E1", "E9b"))
-#chemical_base_main()
+#chemical_base_main(specify=TRUE, list("E1", "E2", "E3", "E4a", "E4b", "E5", "E6", "E8", "E9a", "E9b", "E12", "E14a1", "E14a2", "E15", "E19", "E27", "E28", "E29a1", "E29a2", "E30a", "E32a", "E22", "E33", "E24", "E25", "E26", "E10", "E11", "E16", "E18", "E23"))
+chemical_base_main()
 
 #***************************
 # clean_up
