@@ -101,9 +101,9 @@ create_model_lists <- function(){
     
   # 5.4) define reaction terms: build RX-term for each species
   
-  # Conversion factors: needed for reaction terms
-  q <- mean(grid_collection$svf.grid$mid / grid_collection$por.grid$mid) # from 1/svf to 1/por; solid to aqeaous
-  r <- mean(grid_collection$por.grid$mid / grid_collection$svf.grid$mid) # from 1/por to 1/svf; aqeous to solid
+  # store conversion factors as text in "reaction_terms"-list 
+  reaction_terms[["q"]] <<- grid_collection$svf.grid$mid / grid_collection$por.grid$mid # from 1/svf to 1/por; solid to aqeaous
+  reaction_terms[["r"]] <<- grid_collection$por.grid$mid / grid_collection$svf.grid$mid # from 1/por to 1/svf; aqeous to solid
   
   for (species in species_operational){
     
@@ -130,8 +130,8 @@ create_model_lists <- function(){
       
       # check if/which conversion factor is needed
       # if species is solute and unit of reaction rate is "mol/V_sf/y" -> q; if species is solid and unit of reaction rate is "mol/V_pw/y" -> r
-      if ((species$phase=="solute")&(occuring_reactions[[element]]$reaction_rates$u_unit=="mol/V_sf/y")) conversion <- q
-      else if ((species$phase=="solid")&(occuring_reactions[[element]]$reaction_rates$u_unit=="mol/V_pw/y")) conversion <- r
+      if ((species$phase=="solute")&(occuring_reactions[[element]]$reaction_rates$u_unit=="mol/V_sf/y")) conversion <- "q"
+      else if ((species$phase=="solid")&(occuring_reactions[[element]]$reaction_rates$u_unit=="mol/V_pw/y")) conversion <- "r"
       else conversion <- 1
       
       # get reaction rate name(s)

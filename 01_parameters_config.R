@@ -10,9 +10,9 @@
 # Environmental parameters
   # constant porosity
   por             <- 0.8             # Porosity; for constant porosity
-  # varying porosity (!!!not functional yet!!!)
+  # varying porosity (!!How exactly porosity profile is used to calculate in the model function is still unclear!!)
   por.0         <- 0.8               # porosity at surface [-] =soil moisture conntent (at full saturation)
-  por.inf       <- 0.8               # porosity at infinite depth [-]
+  por.inf       <- 0.5               # porosity at infinite depth [-]
   svf             <- 1-por           # Solid volume fraction
   TC              <- 10              # Temperature Celsius
   P               <- 0.30            # True pressure [bar] 

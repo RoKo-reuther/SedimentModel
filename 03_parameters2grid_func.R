@@ -24,10 +24,19 @@ grid_setup <- function(){
   # attach porosity
   por.grid <- setup.prop.1D(value = por, grid = grid)
   # por.grid <- setup.prop.1D(func=Porosity, grid=grid, y.0 = por.0, y.inf = por.inf, gamma=gamma)
+  # por.grid <- setup.prop.1D(func=p.exp, grid=grid, y.0 = por.0, y.inf = por.inf)
   
   # attach solid volume fraction
   svf.grid <- setup.prop.1D(value = svf, grid = grid)
   # svf.grid <- setup.prop.1D(func=SolidVolumeFrac, grid=grid, y.0 = por.0, y.inf = por.inf, gamma=gamma)
+  # a temporary workaround .. first: svf.grid = por.grid; second: calculate new values for svf.grid content "1-por"
+  # svf.grid <- setup.prop.1D(func=p.exp, grid=grid, y.0 = por.0, y.inf = por.inf)
+  # for (i in seq_along(svf.grid$mid)){
+  #   svf.grid$mid[i] <- 1-svf.grid$mid[i]
+  # }
+  # for (i in seq_along(svf.grid$int)){
+  #   svf.grid$int[i] <- 1-svf.grid$int[i]
+  # }
   
   # attach diffusive parameters for advection at top
   #now deliver the same values as porosity does not change with depth; to check correct OM degradation sequences
