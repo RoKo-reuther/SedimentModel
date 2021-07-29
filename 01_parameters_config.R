@@ -5,7 +5,7 @@
 
 # Grid domain
   L <- 0.3    # depth of sediment domain [m]
-  N <- 30    # number of grid layers
+  N <- 300    # number of grid layers
 
 # Environmental parameters
   # constant porosity
