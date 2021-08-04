@@ -3,6 +3,9 @@
 #                           DONT CHANGE ANYTHING HERE WITHOUT INTENDED PURPOSE                            #
 ###########################################################################################################
 
+library(shape)
+library(rootSolve)
+library(deSolve)
 library(marelac)
 library(ReacTran)
 
