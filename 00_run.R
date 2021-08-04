@@ -17,18 +17,15 @@
       # view in RStudio
       model_diagram
   ## attach parameters to grid
-    source("03_parameters2grid_func.R")
+    source("03_grid_setup.R")
   ## create processing lists
-    source("041_model_preparation.R")
+    source("04_list_preparation.R")
       
-### source transient-scenario-function (used to calculate boundary conditions also in steady-state)
-      source("o_Model_transient_scenario.R")
-      
-### source boundary conditions
-      source("o_Model_boundary.R")
+### source boundary conditions ("boundary_conditions"-list containing chosen values and "boundary_condition_factors"-array for transient behaviour)
+      source("052_boundary_conditions_func.R")
   
 ### source model-function
-      source("042_model_function.R")
+      source("06_model_function.R")
       
 ### Solve the model: Steady state
 print(system.time(
@@ -43,9 +40,9 @@ print(system.time(
 ))
 
 
-#load transient parts
-source('o_Model_parameters_transient.R')
-source('o_Model_initialize_transient.R')
+### extract steady state solution as input for transient model
+source('07_extract_ss_solution.R')
+#source('o_Model_initialize_transient.R')
 
 #Solve transient model 
 #by steady state beginning
@@ -57,6 +54,7 @@ print(system.time(
                   names = names_out,
                   #method = "lsoda", 
                   #verbose = TRUE, 
-                  nspec = length(names_out)
+                  nspec = length(names_out),
+                  dimens = N,
                   #,rtol = 1e-7, atol = 1e-6
   )))

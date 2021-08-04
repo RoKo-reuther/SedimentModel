@@ -5,7 +5,7 @@
 
 # Grid domain
   L <- 0.3    # depth of sediment domain [m]
-  N <- 300    # number of grid layers
+  N <- 30   # number of grid layers
 
 # Environmental parameters
   # constant porosity
@@ -25,3 +25,11 @@
   CtoN            <- 106/16          # C:N ratio after Redfield
   CtoP            <- 106/1           # C:P ratio after Redfield
   chi_FeOxA       <- 0.6             # P:Fe ratio; ratio adsorbed/coprecipitated P with Fe(OH)3... value of 0.6 by bas vd grift
+  
+# time parameters
+  #Time and time steps for solving transient model after steady state solution has been found
+  tmax <- 20    # number of years for run
+  tint <- 1/12      # time step [years]
+  
+  #create time sequence
+  times <- seq(0, tmax, by = tint)

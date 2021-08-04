@@ -13,7 +13,7 @@ create_model_lists <- function(){
   species_operational <<- list() # 1) operational species list: "subspecies" will be assigned as own species for the further procedure
   state <<- c() # 2.1) state vector (needed as function argument)
   names_out <<- c() # 2.2) used to label steady-state output (in ode.1D it is only used for plotting)
-  
+  boundary_condition_terms <<- list() # 3) boundary concentration/fluxes calculation taking into account the transient factors; formulated as text
   transport_terms <<- list() # 4) store tranX-terms as text
   rate_constants <<- list() # 5.1) list of all reaction rate constants in "occuring_reactions"-list
   rate_equations <<- list() # 5.2) list of all reaction rate equations in "occuring_reactions"-list
@@ -21,7 +21,7 @@ create_model_lists <- function(){
   reaction_terms <<- list() # 5.4) calculate change of a species concentration through chemical processes by summing up the reaction rates of reactions this species is involved in
   total_c_change <<- list() # 6) "total concentration change terms": transport term + reaction term for each species (dXdt = tranX$dC + RX)
   returnlist <<- "" # 7) list of content that Model function returns, formulated as text
-  # 8) assign "N" from "chemical_base_config" to global environment
+  # 8) assign "N" from "chemical_base_config" to global environment (needed for state-variable assignment in model_function)
   
   
   
@@ -50,6 +50,34 @@ create_model_lists <- function(){
     state <<- c(state, rep(0, length.out = N))
     # 2.2) names-vector (species have to be in same order as in state vector)
     names_out <<- c(names_out, species$name)
+  }
+  
+  
+  
+  # 3) define boundary_condition terms
+  for (species in species_operational){
+    # terms differ for solids and solutes
+    if (species$phase == "solute"){
+      # solutes
+      # varaibles name
+      var_name <- paste(species$name, "_top", sep = "")
+      
+      # varaibles content
+      var_content <- paste("(boundary_conditions$", species$name, "_top + boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 1]) * boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 2]",  sep = "")
+      # store initial expression ...
+      boundary_condition_terms[[var_name]] <<- var_content
+    }
+    
+    if (species$phase == "solid"){
+      # solids
+      # varaibles name
+      var_name <- paste("F_", species$name, sep = "")
+      
+      # varaibles content
+      var_content <- paste("(boundary_conditions$F_", species$name, " + boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 1]) * boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 2]",  sep = "")
+      # store initial expression ...
+      boundary_condition_terms[[var_name]] <<- var_content
+    }
   }
   
   
