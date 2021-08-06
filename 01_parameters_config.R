@@ -17,7 +17,7 @@
   TC              <- 10              # Temperature Celsius
   P               <- 0.30            # True pressure [bar] 
   dens_dw         <- 2.70            # Density dry sediment [g cm-3]= [kg L-1] = [10^3kg m-3] 
-  S               <- 6.25* 10^-5     # Salinity for fresh water in psu (ppt)
+  S               <- 6.25* 10^-5     # Salinity for fresh water in psu (ppt); K: 430uS/cm -> 0.208 ppt?
   v               <- 10*1e-3         # Sedimentation rate: advection at top [m y-1]
   Db              <- 1e-4           #  Mixing rate of the sediment; Bioturbation coefficient [m2 y-1]
   
