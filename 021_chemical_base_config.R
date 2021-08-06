@@ -63,8 +63,10 @@ shared_regulation_terms <- list(
   ratio_FeOx="(FeOH3A + 1e-36)/(FeOH3A_tot + 1e-36)", # "1e-36" to prevent NaN results due to zero divided by zero
   IAP_FeCO3="Fe_2 * DIC",
   SI_FeCO3="log10((IAP_FeCO3 + 1e-36)/Ksp_FeCO3)", # saturation index FeCO3; "1e-36" to prevent inf values due to log10
+  #SI_FeCO3="IAP_FeCO3/Ksp_FeCO3", # omega FeCO3
   IAP_viv="(Fe_2^3) * (PO4^2)",
   SI_viv="log10((IAP_viv + 1e-36)/Ksp_viv)" # saturation index viviannite; "1e-36" to prevent inf values due to log10
+  #SI_viv="IAP_viv/Ksp_viv" # omega viviannite
 )
 
 # define reactions
@@ -477,7 +479,7 @@ reactions_collection <- list(
                "Fe_2"=list(abbreviation="Fe_2", stoic=3),
                "PO4"=list(abbreviation="PO4", stoic=2))),
            reaction_rate_constants=list(k21=list(value=1.15e-1, u_unit="y-1"), Ksp_viv=shared_reaction_constants$vivianite_reactions$Ksp_viv),
-           # Vivianite precipitation occurs when omega>1 at a rate kp*(omega-1) and does not precipitate if in equilibirum, needs to be oversaturated
+           # vivianite dissolution occurs when omega<1, at a rate proportional to vivianite concentration and does not dissolute if no viv is present
            reaction_rates=list(equations=list(diss_rate_viv="-k21*VivP*(ifelse(SI_viv <= 1,SI_viv,1) - 1)"), u_unit="mol/V_sf/y"),
            activated=TRUE),
   
