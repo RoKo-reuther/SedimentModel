@@ -72,15 +72,15 @@ grid_setup <- function(){
 grid_setup()
 
 # c) define function that will be used in model-function to calculate temperature dependent diffusion coefficients for solutes
-grid_collection$diff_calculations$solute_diffusion_coffs <- function(){
+grid_collection$diff_calculations$solute_diffusion_coffs <- function(TC){
   for (i in seq_along(occuring_species)){
     if (occuring_species[[i]]$phase == "solute"){
       # get species name for diffcoff-function
       name_diffcoeff <- occuring_species[[i]]$abbr_diffcoeff
       # calculate molecular diffusion coefficient
-      Dmol.X <- diffcoeff(S = S, t = TC, P = P, species = name_diffcoeff)[[name_diffcoeff]]
+      Dmol.X <- diffcoeff(S = parameters$S, t = TC, P = parameters$P, species = name_diffcoeff)[[name_diffcoeff]]
       # correct molecular diffusion coefficient and add bioturbation
-      DX <- lapply(grid_collection$diff_calculations$corr, FUN = function(corr){corr*Dmol.X+Db})
+      DX <- lapply(grid_collection$diff_calculations$corr, FUN = function(corr){corr*Dmol.X+parameters$Db})
       # replace dummy vectors by calculated ones
       # get species varaible name in list
       name <- occuring_species[[i]]$abbreviation # species name
