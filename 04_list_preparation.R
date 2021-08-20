@@ -6,8 +6,8 @@
 # create lists that store rate-equation-functions and rate-constants based on "occuring_reactions"-list, conversion factors, "total concentration change terms" RX
 create_model_lists <- function(){
   # source files
-  source(file="01_parameters_config.R", local=TRUE)
-  source(file="021_chemical_base_config.R", local=TRUE)
+  source(file=configs$parameters_config, local=TRUE)
+  source(file=configs$chemical_base_config, local=TRUE)
   
   # table of contents / create variables
   species_operational <<- list() # 1) operational species list: "subspecies" will be assigned as own species for the further procedure
@@ -31,14 +31,14 @@ create_model_lists <- function(){
     if (length(species$subspecies) > 0) {
       # ... create new species-entries for each subspecies; copy information from "mother-species" for further processing.
       for (i in seq_along(species$subspecies)){
-        species_operational[[species$subspecies[[i]]]] <<- c(species["abbreviation"], species["involved_in"], species["phase"], name = species$subspecies[[i]], number=i) 
+        species_operational[[species$subspecies[[i]]]] <<- c(species["abbreviation"], if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]}, species["involved_in"], species["phase"], name = species$subspecies[[i]], number=i) 
         #"number" stored to match the right reaction rate later on
         # "abbreviation" stored to get information out of "occuring_reactions"-list (reference to "mother-species")
       }
     }
     else{
       # if there is no subspecies: copy entry partly from "occuring_species"-list to "species_operational"-list
-      species_operational[[species$abbreviation]] <<- c(species["abbreviation"], species["involved_in"], species["phase"], name = species$abbreviation)
+      species_operational[[species$abbreviation]] <<- c(species["abbreviation"], if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]}, species["involved_in"], species["phase"], name = species$abbreviation)
     }
   }
   
