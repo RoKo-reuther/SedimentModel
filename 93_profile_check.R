@@ -56,6 +56,19 @@ draw_depth_profile <- function(selection){
   
   
   #*************************************
+  # FeOH3A
+  #*************************************
+  RFeOH3A <- data.frame(class="RFeOH3A", value=ss$RFeOH3A)
+  R2a_Ox <- data.frame(class="R2a_Ox", value=ss$R2a_Ox)
+  R2b_Ox <- data.frame(class="R2b_Ox", value=ss$R2b_Ox)
+  R5_Ox <- data.frame(class="R5_Ox", value=ss$R5_Ox)
+  R10_Ox <- data.frame(class="R10_Ox", value=ss$R10_Ox)
+  R29_Ox <- data.frame(class="R29_Ox", value=ss$R29_Ox)
+  
+  FeOH3A <<- rbind(RFeOH3A, R2a_Ox, R2b_Ox, R5_Ox, R10_Ox, R29_Ox)
+  
+  
+  #*************************************
   # draw profiles
   #*************************************
   draw_frame <- cbind(depth_p, selection)
@@ -64,4 +77,4 @@ draw_depth_profile <- function(selection){
     geom_path(mapping = aes(x = value, y = depth_p, color = class))
 }
 
-draw_depth_profile(Mn_2)
+draw_depth_profile(FeOH3A)
