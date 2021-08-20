@@ -6,16 +6,30 @@
 Model <- function(t, state, pars) {
   
   ## Initialisation of state variables
+  N <- parameters$N # get N out of parameters list
   for (i in seq_along(species_operational)){
     assign(names(species_operational[i]), state[((i-1)*N+1):(i*N)])
   }
-  
-  
+
+
   ## Define boundary conditions
-  for (i in seq_along(boundary_condition_terms)){
-    assign(names(boundary_condition_terms[i]), eval(parse(text=boundary_condition_terms[[i]])))
+    # assign constant values
+    for (i in seq_along(boundary_conditions$constant)){
+      assign(names(boundary_conditions$constant[i]), boundary_conditions$constant[[i]])
+    }
+    # assign varying (time depemdent) values
+  for (i in seq_along(boundary_conditions$varying)){
+    assign(names(boundary_conditions$varying[i]), boundary_conditions$varying[[i]](t))
   }
 
+  
+  ## get current temperature
+  TC <- TC_func(t)
+  
+  
+  ## set temperature diffusion coefficients for solutes
+  grid_collection$diff_calculations$solute_diffusion_coffs(TC)
+  
   
   ## Define the transport terms
   for (i in seq_along(transport_terms)){
