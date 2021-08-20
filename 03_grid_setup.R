@@ -69,8 +69,10 @@ grid_setup <- function(){
   grid_collection <<- c(grid_collection, list(grid=grid, Db.grid=Db.grid, por.grid=por.grid, svf.grid=svf.grid, v.grid=v.grid, u.grid=u.grid, diff_calculations=list(corr=corr)))
 }
 
+grid_setup()
+
 # c) define function that will be used in model-function to calculate temperature dependent diffusion coefficients for solutes
-solute_diffusion_coffs <- function(){
+grid_collection$diff_calculations$solute_diffusion_coffs <- function(){
   for (i in seq_along(occuring_species)){
     if (occuring_species[[i]]$phase == "solute"){
       # get species name for diffcoff-function
@@ -89,8 +91,6 @@ solute_diffusion_coffs <- function(){
     }
   }
 }
-
-grid_setup()
 
 #***************************
 # clean_up
