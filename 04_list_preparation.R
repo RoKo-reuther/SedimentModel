@@ -8,12 +8,13 @@ create_model_lists <- function(){
   # source files
   source(file=configs$parameters_config, local=TRUE)
   source(file=configs$chemical_base_config, local=TRUE)
+  source(file=configs$boundary_conditions_config)
   
   # table of contents / create variables
   species_operational <<- list() # 1) operational species list: "subspecies" will be assigned as own species for the further procedure
   state <<- c() # 2.1) state vector (needed as function argument)
   names_out <<- c() # 2.2) used to label steady-state output (in ode.1D it is only used for plotting)
-  boundary_condition_terms <<- list() # 3) boundary concentration/fluxes calculation taking into account the transient factors; formulated as text
+  # 3) boundary conditions_old: out of order
   transport_terms <<- list() # 4) store tranX-terms as text
   rate_constants <<- list() # 5.1) list of all reaction rate constants in "occuring_reactions"-list
   rate_equations <<- list() # 5.2) list of all reaction rate equations in "occuring_reactions"-list
@@ -21,7 +22,8 @@ create_model_lists <- function(){
   reaction_terms <<- list() # 5.4) calculate change of a species concentration through chemical processes by summing up the reaction rates of reactions this species is involved in
   total_c_change <<- list() # 6) "total concentration change terms": transport term + reaction term for each species (dXdt = tranX$dC + RX)
   returnlist <<- "" # 7) list of content that Model function returns, formulated as text
-  # 8) assign "N" from "chemical_base_config" to global environment (needed for state-variable assignment in model_function)
+  parameters <<- list() # 8) list of some parameters from "parameters_config" needed in the model function
+  # 9) store temperature function in .GlobalEnv
   
   
   
@@ -55,30 +57,30 @@ create_model_lists <- function(){
   
   
   # 3) define boundary_condition terms
-  for (species in species_operational){
-    # terms differ for solids and solutes
-    if (species$phase == "solute"){
-      # solutes
-      # varaibles name
-      var_name <- paste(species$name, "_top", sep = "")
-      
-      # varaibles content
-      var_content <- paste("(boundary_conditions$", species$name, "_top + boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 1]) * boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 2]",  sep = "")
-      # store initial expression ...
-      boundary_condition_terms[[var_name]] <<- var_content
-    }
-    
-    if (species$phase == "solid"){
-      # solids
-      # varaibles name
-      var_name <- paste("F_", species$name, sep = "")
-      
-      # varaibles content
-      var_content <- paste("(boundary_conditions$F_", species$name, " + boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 1]) * boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 2]",  sep = "")
-      # store initial expression ...
-      boundary_condition_terms[[var_name]] <<- var_content
-    }
-  }
+  # for (species in species_operational){
+  #   # terms differ for solids and solutes
+  #   if (species$phase == "solute"){
+  #     # solutes
+  #     # varaibles name
+  #     var_name <- paste(species$name, "_top", sep = "")
+  #     
+  #     # varaibles content
+  #     var_content <- paste("(boundary_conditions$", species$name, "_top + boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 1]) * boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 2]",  sep = "")
+  #     # store initial expression ...
+  #     boundary_condition_terms[[var_name]] <<- var_content
+  #   }
+  #   
+  #   if (species$phase == "solid"){
+  #     # solids
+  #     # varaibles name
+  #     var_name <- paste("F_", species$name, sep = "")
+  #     
+  #     # varaibles content
+  #     var_content <- paste("(boundary_conditions$F_", species$name, " + boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 1]) * boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 2]",  sep = "")
+  #     # store initial expression ...
+  #     boundary_condition_terms[[var_name]] <<- var_content
+  #   }
+  # }
   
   
   
@@ -252,10 +254,19 @@ create_model_lists <- function(){
   # create returnlist (to be evaluated in model function)
   returnlist <<- paste("list(", result_vec, ", ", ennumeration_1, ", ", ennumeration_2, ")", sep = "")
 
+
+
+  # 8) create list of some parameters from "parameters_config" needed in the model function
+  parameters <<- list(
+    N = N,  # needed for state-variable assignment in model_function
+    S = S,  # needed for diffcoeff function
+    P = P,  # needed for diffcoeff function
+    Db = Db # needed for diffusion coefficient calculation
+  )
   
   
-  # 8) assign "N" from "chemical_base_config" to global environment
-  N <<- N
+  # 9) assign temperature function
+  TC_func <<- TC_func
 }
 
 create_model_lists()
