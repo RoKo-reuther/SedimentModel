@@ -32,7 +32,7 @@
 # time parameters
   #Time and time steps for solving transient model after steady state solution has been found
   tmax <- 20    # number of years for run
-  tint <- 1/12      # time step [years]
+  tint <- 1/12  # time step [years]
   
   #create time sequence
   times <- seq(0, tmax, by = tint)
