@@ -48,8 +48,8 @@ boundary_conditions <- list(
       # set "standard value"; at least used for steady state solving
       C_top <-1*0.25
       # vary concentration with time
-      if (t >= 5/12 && t < 9/12 ) {
-        C_top     <- 0   # anoxic conditions summer months; june july august
+      if (t%%1 >= 5/12 && t%%1 < 9/12 ) {
+        C_top     <- 0   # anoxic conditions summer months; june july august; every year
       }
       return(C_top)
     },
@@ -61,8 +61,8 @@ boundary_conditions <- list(
       # set "standard value"; at least used for steady state solving
       flux <- 2
       # vary flux with time
-      if (t >= 1/12 && t < 3/12 ) {
-        flux <- 3.8 # 100 grams Fe to mol = 1.79067 mol (additional); february
+      if (t%%1 >= 1/12 && t%%1 < 3/12 ) {
+        flux <- 3.8 # 100 grams Fe to mol = 1.79067 mol (additional); february; each year
       }
       return(flux)
     }
