@@ -261,7 +261,8 @@ create_model_lists <- function(){
     N = N,  # needed for state-variable assignment in model_function
     S = S,  # needed for diffcoeff function
     P = P,  # needed for diffcoeff function
-    Db = Db # needed for diffusion coefficient calculation
+    Db = Db, # needed for diffusion coefficient calculation
+    times = times # needed to solve transient model
   )
   
   
