@@ -70,7 +70,7 @@ mass_balance_steady_all()
 #*************************************
 
 # mass balance check for transient results
-mass_balance_transient <- function(specie, timesteps = times, trans_results = trans, layer_depth = grid_collection$grid$dx, por = grid_collection$por.grid$mid, svf = grid_collection$svf.grid$mid){
+mass_balance_transient <- function(specie, timesteps = parameters$times, trans_results = trans, layer_depth = grid_collection$grid$dx, por = grid_collection$por.grid$mid, svf = grid_collection$svf.grid$mid){
   # mass balance: depth integrated "species-reaction-rate" + flux upwards (positive = into model domain) - flux downwards (positive = out of model domain) [mol/(m^2*y)]
   # performs a simple depth-integration through adding up for reaction rates; no interpolation
   # calculates mass balance for one specie and all timesteps
@@ -94,7 +94,7 @@ mass_balance_transient <- function(specie, timesteps = times, trans_results = tr
     needle <- paste("R", specie, "1", sep="")
     # get start column
     startc <- which(attributes(trans)$dimnames[[2]] == needle)
-    for (j in seq(from = 0, to = N-1)){
+    for (j in seq(from = 0, to = parameters$N-1)){
       rr_depth_p <- c(rr_depth_p, trans[i, startc+j])
     }
     
@@ -116,7 +116,7 @@ mass_balance_transient <- function(specie, timesteps = times, trans_results = tr
 # create detailed transient mass balance data frame
 mass_balance_transient_all <- function(){
   trans_mass_balances <- data.frame(
-    time = times
+    time = parameters$times
   )
   for (specie in species_operational){
     # add mass balances for one species for every timesteps as new row
