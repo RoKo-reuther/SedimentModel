@@ -28,7 +28,7 @@ Model <- function(t, state, pars) {
   
   
   ## set temperature diffusion coefficients for solutes
-  grid_collection$diff_calculations$solute_diffusion_coffs(TC)
+  grid_collection$solute_diffusion_coffs(TC)
   
   
   ## Define the transport terms
