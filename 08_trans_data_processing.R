@@ -9,6 +9,7 @@ name_trans_columns <- function(){
   new_names <- attributes(trans)$dimnames[[2]]
   
   # edit list: replace numbers through X_N
+  N <- parameters$N
   counter <- 1
   for (specie in species_operational){
     new_names[((counter-1)*N+1):(N*counter)+1] <- rep(specie$name, N)
