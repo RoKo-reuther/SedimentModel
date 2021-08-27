@@ -31,6 +31,10 @@
 ### source model-function
       source("06_model_function.R")
       
+### checks before model run
+  ## check porosity profile
+      plot(grid_collection$por.grid, grid = grid_collection$grid, xyswap = TRUE)
+      
 ### Solve the model: Steady state
 print(system.time(
   ss <- steady.1D(y = state, 
