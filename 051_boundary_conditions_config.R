@@ -48,7 +48,7 @@ boundary_conditions <- list(
       # set "standard value"; at least used for steady state solving
       C_top <-1*0.25
       # vary concentration with time
-      if (t%%1 >= 5/12 && t%%1 < 9/12 ) {
+      if (t%%1 > 5/12 && t%%1 < 9/12 ) {
         C_top     <- 0   # anoxic conditions summer months; june july august; every year
       }
       return(C_top)
@@ -59,10 +59,13 @@ boundary_conditions <- list(
     # FeOH3A
     F_FeOH3A = function(t){
       # set "standard value"; at least used for steady state solving
-      flux <- 2
-      # vary flux with time
-      if (t%%1 >= 1/12 && t%%1 < 3/12 ) {
-        flux <- 3.8 # 100 grams Fe to mol = 1.79067 mol (additional); february; each year
+      flux <- 1
+      # vary flux with time: add 100 grams/m² Fe in february every year
+      # 100g Fe to mol = 1.79067 mol
+      # added mass [mol/m²] = flux [mol/(m²*yr)] * timespan [yr] -> flux [mol/(m²*yr)] = 1.8 [mol/m²] / (1/12) [yr]
+      if (round(t%%1, digits=15) >= round(1/12, digits=15) && round(t%%1, digits=15) < round(2/12, digits=15)) {
+        flux <- flux + 21.6
+        #flux <- flux + Fe_addition(t%%1)  # int: 1.774695
       }
       return(flux)
     }
