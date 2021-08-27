@@ -16,7 +16,7 @@ create_model_lists <- function(){
   names_out <<- c() # 2.2) used to label steady-state output (in ode.1D it is only used for plotting)
   # 3) boundary conditions_old: out of order
   transport_terms <<- list() # 4) store tranX-terms as text
-  rate_constants <<- list() # 5.1) list of all reaction rate constants in "occuring_reactions"-list
+  rate_constants <<- list() # 5.1) list of all reaction rate constants in "shared_reaction_constants"-list and occuring_reactions"-list
   rate_equations <<- list() # 5.2) list of all reaction rate equations in "occuring_reactions"-list
   shared_reg_terms <<- list() # 5.3) assign "shared_reaction_terms" from "chemical_base_config" to global environment
   reaction_terms <<- list() # 5.4) calculate change of a species concentration through chemical processes by summing up the reaction rates of reactions this species is involved in
@@ -108,12 +108,17 @@ create_model_lists <- function(){
   }
   
   
+  # 5.1.1) get "shared_reaction_terms" from "chemical_base_config; store in "rate_constants"-list
+  for (i in seq_along(shared_reaction_constants)){
+    rate_constants[names(shared_reaction_constants[i])] <<- shared_reaction_constants[[i]]$value
+  }
   
-  # 5.1) & 5.2)
+  
+  # 5.1.2 & 5.2)
   # go through "occuring_reactions"-list
   for (element in occuring_reactions){
     
-    # 5.1) extract reaction rate constants
+    # 5.1.2) extract reaction rate constants that are only used in one reaction
     for (i in seq_along(element$reaction_rate_constants)){
       rate_constants[names(element$reaction_rate_constants[i])] <<- element$reaction_rate_constants[[i]]$value
     }
@@ -251,8 +256,24 @@ create_model_lists <- function(){
     }
     ennumeration_2 <- fluxes_ennumeration()
     
+    # change in concentration through transport processes (tranX$dC=tranX$dC for each species X)
+    dC_ennumeration <- function(){
+      for (i in seq_along(species_operational)){
+        name <- names(species_operational[i])
+        new_entry <- paste("trandC_", name, "=(tran", name, "$dC)", sep = "")
+        if (i == 1){
+          ennumeration <- new_entry
+        }
+        else {
+          ennumeration <- paste(ennumeration, new_entry, sep = ", ") 
+        }
+      }
+      return(ennumeration)
+    }
+    ennumeration_3 <- dC_ennumeration()
+    
   # create returnlist (to be evaluated in model function)
-  returnlist <<- paste("list(", result_vec, ", ", ennumeration_1, ", ", ennumeration_2, ")", sep = "")
+  returnlist <<- paste("list(", result_vec, ", ", ennumeration_1, ", ", ennumeration_2, ", ", ennumeration_3, ")", sep = "")
 
 
 
