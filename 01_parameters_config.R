@@ -14,7 +14,7 @@
   por.inf       <- 0.8              # porosity at infinite depth [-]
   
   P               <- 0.30           # True pressure [bar] 
-  dens_dw         <- 2.70           # Density dry sediment [g cm-3]= [kg L-1] = [10^3kg m-3] ###where is it used?###
+  dens_dw         <- 2.70           # Density dry sediment [g cm-3]= [kg L-1] = [10^3kg m-3]; used for K_mMnO2 and K_mFeOH3
   S               <- 6.25* 10^-5    # Salinity for fresh water in psu (ppt); K: 430uS/cm -> 0.208 ppt?
   v               <- 10*1e-3        # Sedimentation rate: advection at top [m y-1]
   Db              <- 1e-4           # Mixing rate of the sediment; Bioturbation coefficient [m2 y-1]
@@ -31,7 +31,7 @@
   
 # time parameters
   #Time and time steps for solving transient model after steady state solution has been found
-  tmax <- 20    # number of years for run
+  tmax <- 2    # number of years for run
   tint <- 1/12  # time step [years]
   
   #create time sequence
