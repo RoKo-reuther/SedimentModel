@@ -6,22 +6,24 @@
 # create lists that store rate-equation-functions and rate-constants based on "occuring_reactions"-list, conversion factors, "total concentration change terms" RX
 create_model_lists <- function(){
   # source files
-  source(file="01_parameters_config.R", local=TRUE)
-  source(file="021_chemical_base_config.R", local=TRUE)
+  source(file=configs$parameters_config, local=TRUE)
+  source(file=configs$chemical_base_config, local=TRUE)
+  source(file=configs$boundary_conditions_config)
   
   # table of contents / create variables
   species_operational <<- list() # 1) operational species list: "subspecies" will be assigned as own species for the further procedure
   state <<- c() # 2.1) state vector (needed as function argument)
   names_out <<- c() # 2.2) used to label steady-state output (in ode.1D it is only used for plotting)
-  boundary_condition_terms <<- list() # 3) boundary concentration/fluxes calculation taking into account the transient factors; formulated as text
+  # 3) boundary conditions_old: out of order
   transport_terms <<- list() # 4) store tranX-terms as text
-  rate_constants <<- list() # 5.1) list of all reaction rate constants in "occuring_reactions"-list
+  rate_constants <<- list() # 5.1) list of all reaction rate constants in "shared_reaction_constants"-list and occuring_reactions"-list
   rate_equations <<- list() # 5.2) list of all reaction rate equations in "occuring_reactions"-list
   shared_reg_terms <<- list() # 5.3) assign "shared_reaction_terms" from "chemical_base_config" to global environment
   reaction_terms <<- list() # 5.4) calculate change of a species concentration through chemical processes by summing up the reaction rates of reactions this species is involved in
   total_c_change <<- list() # 6) "total concentration change terms": transport term + reaction term for each species (dXdt = tranX$dC + RX)
   returnlist <<- "" # 7) list of content that Model function returns, formulated as text
-  # 8) assign "N" from "chemical_base_config" to global environment (needed for state-variable assignment in model_function)
+  parameters <<- list() # 8) list of some parameters from "parameters_config" needed in the model function
+  # 9) store temperature function in .GlobalEnv
   
   
   
@@ -31,14 +33,14 @@ create_model_lists <- function(){
     if (length(species$subspecies) > 0) {
       # ... create new species-entries for each subspecies; copy information from "mother-species" for further processing.
       for (i in seq_along(species$subspecies)){
-        species_operational[[species$subspecies[[i]]]] <<- c(species["abbreviation"], species["involved_in"], species["phase"], name = species$subspecies[[i]], number=i) 
+        species_operational[[species$subspecies[[i]]]] <<- c(species["abbreviation"], if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]}, species["involved_in"], species["phase"], name = species$subspecies[[i]], number=i) 
         #"number" stored to match the right reaction rate later on
         # "abbreviation" stored to get information out of "occuring_reactions"-list (reference to "mother-species")
       }
     }
     else{
       # if there is no subspecies: copy entry partly from "occuring_species"-list to "species_operational"-list
-      species_operational[[species$abbreviation]] <<- c(species["abbreviation"], species["involved_in"], species["phase"], name = species$abbreviation)
+      species_operational[[species$abbreviation]] <<- c(species["abbreviation"], if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]}, species["involved_in"], species["phase"], name = species$abbreviation)
     }
   }
   
@@ -55,30 +57,30 @@ create_model_lists <- function(){
   
   
   # 3) define boundary_condition terms
-  for (species in species_operational){
-    # terms differ for solids and solutes
-    if (species$phase == "solute"){
-      # solutes
-      # varaibles name
-      var_name <- paste(species$name, "_top", sep = "")
-      
-      # varaibles content
-      var_content <- paste("(boundary_conditions$", species$name, "_top + boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 1]) * boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 2]",  sep = "")
-      # store initial expression ...
-      boundary_condition_terms[[var_name]] <<- var_content
-    }
-    
-    if (species$phase == "solid"){
-      # solids
-      # varaibles name
-      var_name <- paste("F_", species$name, sep = "")
-      
-      # varaibles content
-      var_content <- paste("(boundary_conditions$F_", species$name, " + boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 1]) * boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 2]",  sep = "")
-      # store initial expression ...
-      boundary_condition_terms[[var_name]] <<- var_content
-    }
-  }
+  # for (species in species_operational){
+  #   # terms differ for solids and solutes
+  #   if (species$phase == "solute"){
+  #     # solutes
+  #     # varaibles name
+  #     var_name <- paste(species$name, "_top", sep = "")
+  #     
+  #     # varaibles content
+  #     var_content <- paste("(boundary_conditions$", species$name, "_top + boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 1]) * boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 2]",  sep = "")
+  #     # store initial expression ...
+  #     boundary_condition_terms[[var_name]] <<- var_content
+  #   }
+  #   
+  #   if (species$phase == "solid"){
+  #     # solids
+  #     # varaibles name
+  #     var_name <- paste("F_", species$name, sep = "")
+  #     
+  #     # varaibles content
+  #     var_content <- paste("(boundary_conditions$F_", species$name, " + boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 1]) * boundary_condition_factors[tail(which(t >= times), n=1), '", species$name, "', 2]",  sep = "")
+  #     # store initial expression ...
+  #     boundary_condition_terms[[var_name]] <<- var_content
+  #   }
+  # }
   
   
   
@@ -106,12 +108,17 @@ create_model_lists <- function(){
   }
   
   
+  # 5.1.1) get "shared_reaction_terms" from "chemical_base_config; store in "rate_constants"-list
+  for (i in seq_along(shared_reaction_constants)){
+    rate_constants[names(shared_reaction_constants[i])] <<- shared_reaction_constants[[i]]$value
+  }
   
-  # 5.1) & 5.2)
+  
+  # 5.1.2 & 5.2)
   # go through "occuring_reactions"-list
   for (element in occuring_reactions){
     
-    # 5.1) extract reaction rate constants
+    # 5.1.2) extract reaction rate constants that are only used in one reaction
     for (i in seq_along(element$reaction_rate_constants)){
       rate_constants[names(element$reaction_rate_constants[i])] <<- element$reaction_rate_constants[[i]]$value
     }
@@ -249,13 +256,39 @@ create_model_lists <- function(){
     }
     ennumeration_2 <- fluxes_ennumeration()
     
+    # change in concentration through transport processes (tranX$dC=tranX$dC for each species X)
+    dC_ennumeration <- function(){
+      for (i in seq_along(species_operational)){
+        name <- names(species_operational[i])
+        new_entry <- paste("trandC_", name, "=(tran", name, "$dC)", sep = "")
+        if (i == 1){
+          ennumeration <- new_entry
+        }
+        else {
+          ennumeration <- paste(ennumeration, new_entry, sep = ", ") 
+        }
+      }
+      return(ennumeration)
+    }
+    ennumeration_3 <- dC_ennumeration()
+    
   # create returnlist (to be evaluated in model function)
-  returnlist <<- paste("list(", result_vec, ", ", ennumeration_1, ", ", ennumeration_2, ")", sep = "")
+  returnlist <<- paste("list(", result_vec, ", ", ennumeration_1, ", ", ennumeration_2, ", ", ennumeration_3, ")", sep = "")
 
+
+
+  # 8) create list of some parameters from "parameters_config" needed in the model function
+  parameters <<- list(
+    N = N,  # needed for state-variable assignment in model_function
+    S = S,  # needed for diffcoeff function
+    P = P,  # needed for diffcoeff function
+    Db = Db, # needed for diffusion coefficient calculation
+    times = times # needed to solve transient model
+  )
   
   
-  # 8) assign "N" from "chemical_base_config" to global environment
-  N <<- N
+  # 9) assign temperature function
+  TC_func <<- TC_func
 }
 
 create_model_lists()

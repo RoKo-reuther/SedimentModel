@@ -9,8 +9,8 @@
 #*************************************
 chemical_base_main <- function(specify=FALSE, reaction_list){
   # load parameters to function environment
-  source(file="01_parameters_config.R", local=TRUE)
-  source(file="021_chemical_base_config.R", local=TRUE)
+  source(file=configs$parameters_config, local=TRUE)
+  source(file=configs$chemical_base_config, local=TRUE)
   
   # use this arguments to create model with only explicitly named reactions
   # e.g. chemical_base_main(specify=TRUE, list("E1", "E9b"))
@@ -28,7 +28,7 @@ chemical_base_main <- function(specify=FALSE, reaction_list){
   #*************************************
   # create "occuring_reactions"-list
   #*************************************
-  # Create list with occuring reactions based on activated reactions and species in "01_model_setup_config"-script.
+  # Create list with occuring reactions based on activated reactions and species in "chemical_base_config"-script.
   # Reactions can't occur if at least one educt is missing (required species defined in reactions_collection).
   # This can happen, if a species was disabled manually in species_collection (activated=FALSE).
   

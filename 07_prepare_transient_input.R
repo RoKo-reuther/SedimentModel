@@ -3,7 +3,7 @@
 #               Input parameters to solve transient function: load-in of steady-state values              #
 ###########################################################################################################
 
-ssY_to_vec <- function(){
+extract_ss <- function(){
   # make new vecor to put steady state solution
   da_ss <- c()
   
@@ -15,12 +15,8 @@ ssY_to_vec <- function(){
     #names(to_add) <- rep(specie, N)
     da_ss <- c(da_ss, to_add)
   }
-  
-  # "send" vector to .GlobalEnv
   da_ss <<- da_ss
 }
 
-ssY_to_vec()
-
-# clean up
-rm(ssY_to_vec)
+extract_ss()
+rm(extract_ss)

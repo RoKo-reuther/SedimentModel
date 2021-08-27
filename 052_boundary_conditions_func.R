@@ -12,13 +12,13 @@ library(stringr)
 get_boundary_conditions <- function(){
   # assign "boundary_conditions"-list from "boundary_conditions_config" to globalENV
   t = 0 # minor temporary tweak to source this file without error
-  source(file="051_boundary_conditions_config.R", local = TRUE)
+  source(file=configs$boundary_conditions_config, local = TRUE)
   boundary_conditions <<- boundary_conditions
 }
 
 get_times_sequence <- function(){
    # assign "times" from "parameters_config" to globalENV: needed to fill in X_Add and X_Trans values, and for transient run
-  source(file="01_parameters_config.R", local=TRUE)
+  source(file=configs$parameters_config, local=TRUE)
   times <<- times
 }
 
@@ -52,7 +52,7 @@ get_factors <- function(t){
   # load time-configured boundary-conditions
     # round timestep for expected behaviour
     t <- round(t, digits=6)
-  source(file="051_boundary_conditions_config.R", local = TRUE)
+  source(file=configs$boundary_conditions_config, local = TRUE)
   
   # return vector(X_Add..., X_Trans...)
   temp_return <- paste("c(", str_sub(temp_return, start=3), ")", sep = "")
