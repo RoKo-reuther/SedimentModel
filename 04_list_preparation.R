@@ -86,20 +86,25 @@ create_model_lists <- function(){
   
   # 4) define transport terms
   for (species in species_operational) {
-    # transport terms differ for solids and solutes
-    if (species$phase == "solute") {
-      # solutes
-      # varaibles name
-      var_name <- paste("tran", species$name, sep = "")
+    # varaibles name
+    var_name <- paste("tran", species$name, sep = "")
+    # transport terms differ for solids and solutes in general; also there is a special transport term for adsorbed phosphate
+    if (species$name == "adsorbed_P") {
+      # varaibles content:
+        # adsorbed_P is trasportated with FeOH3A, so FeOH3A's concentration and fluxes are used and corrected for the phosphate load
+        # if FeOH3A fluxes in the sediment at the upper or lower boundary it is assumed, that no adsorbed phosphate comes in with it, but
+        # adsorbed phosphate can flux out of the sediment together with FeOH3A
+      var_content <- "tran.1D(C=FeOH3A*phosphate_load_FeOH3A, flux.up=ifelse(tranFeOH3A$flux.up<0, tranFeOH3A$flux.up*phosphate_load_FeOH3A, 0), flux.down=ifelse(tranFeOH3A$flux.down>0, tranFeOH3A$flux.down*phosphate_load_FeOH3A, 0), D=grid_collection$Db.grid, v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)"
+      # store tranX-term as text in "transpor_terms"-list ...
+      transport_terms[[var_name]] <<- var_content
+    }
+    else if (species$phase == "solute") {
       # varaibles content
       var_content <- paste("tran.1D(C=", species$name, ", C.up=", species$name, "_top, D=grid_collection$D", species$name, ".grid, v=grid_collection$u.grid, VF=grid_collection$por.grid, dx=grid_collection$grid)",  sep = "")
       # store tranX-term as text in "transpor_terms"-list ...
       transport_terms[[var_name]] <<- var_content
     }
     else if (species$phase == "solid") {
-      # solids
-      # varaibles name
-      var_name <- paste("tran", species$name, sep = "")
       # varaibles content
       var_content <- paste("tran.1D(C=", species$name, ", flux.up=F_", species$name, ", D=grid_collection$Db.grid", ", v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)",  sep = "")
       # store tranX-term as text in "transpor_terms"-list ...

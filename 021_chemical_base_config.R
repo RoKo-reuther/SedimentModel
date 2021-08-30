@@ -30,7 +30,7 @@ species_collection <- list(
   "H2S"=list(abbreviation="H2S", name="hydrogen sulphate (pool)", abbr_diffcoeff="H2S", involved_in=list(), phase="solute", activated=TRUE),
   "CH4"=list(abbreviation="CH4", name="methane", abbr_diffcoeff="CH4", involved_in=list(), phase="solute", activated=TRUE),
   "DIC"=list(abbreviation="DIC", name="dissolved inorganic carbon", abbr_diffcoeff="HCO3", involved_in=list(), phase="solute", activated=TRUE),
-  "adsorbed_P"=list(abbreviation="adsorbed_P", name="iron adsorbed phosphorous", involved_in=list(), phase="solid", activated=TRUE)
+  "adsorbed_P"=list(abbreviation="adsorbed_P", name="iron adsorbed phosphorous", involved_in=list(), phase="solid", activated=TRUE) # has to be listed after adsorbens!
 )
 
 
@@ -57,7 +57,7 @@ shared_reaction_constants <- list(
   
   ## PO4 adsorption
   adcap_FeOH3A=list(value=0.27, u_unit="molP/molFe"), # adsorption capacity of FeOH3
-  KadsP20=list(value=3.1, u_unit="m3_pw/molP") # adsorption equilibrium constant at 20°C !!!determine value!!! deltares: 0.1 m³/gP -> 0.1 m³/gP * 31 gP/molP = 3.1 m³/molP
+  KadsP20=list(value=3.1e2, u_unit="m3_pw/molP") # adsorption equilibrium constant at 20°C !!!determine value!!! deltares: 0.1 m³/gP -> 0.1 m³/gP * 31 gP/molP = 3.1 m³/molP
 )
 
 
@@ -79,7 +79,7 @@ shared_regulation_terms <- list(
   ads_t="FeOH3A*adcap_FeOH3A", # [mol/m3_sf]; total adsoprtion sites
   ads_f="ads_t - adsorbed_P", # [mol/m3_sf]; free adsorption sites
   aP_e="ads_t*(KadsP*PO4)/(1+KadsP*PO4)", # [mol/m3_sf]; adsobed phosphate at eqilibrium
-  phosphate_load_FeOH3A="adsorbed_P/FeOH3A" # actual phosphate load of FeOH3A [molP/molFe]
+  phosphate_load_FeOH3A="(adsorbed_P+1e-50)/(FeOH3A+1e-20)"  #"ifelse(adsorbed_P==0, 0, adsorbed_P/FeOH3A)" # actual phosphate load of FeOH3A [molP/molFe]
   # if more than one "adsorbens-specie" the phosphate load for e.g. one of two species is
   # phosphate_load_S1 = (adsorbed_P/(S1*adcap_S1*(S1/(S1 + S2)) + (S2*adcap_S2*(S2/(S1 + S2)))) * (adcap_S1*(S1/(S2 + S2)))
 )
@@ -527,7 +527,7 @@ reactions_collection <- list(
                "PO4"=list(abbreviation="PO4", stoic=1))),
            reaction_rate_constants=list(), # none
            reaction_rates=list(equations=list(R_desP2="ifelse(RFeOH3A < 0, -1*RFeOH3A*phosphate_load_FeOH3A, 0)"), u_unit="mol/V_sf/y"),
-           activated=FALSE)
+           activated=TRUE)
     
 )
 # E17 is missing!!!
