@@ -41,7 +41,8 @@ print(system.time(
                   func = Model, 
                   parms = NULL, 
                   names = names_out, 
-                  #method = "stode",
+                  method = "stodes",
+                  verbose=TRUE,
                   pos = TRUE,
                   nspec = length(names_out) #,rtol = 1e-16,ctol = 1e-16 ,atol = 1e-16
   )))
