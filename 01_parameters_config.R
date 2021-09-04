@@ -9,9 +9,9 @@
 
 # Environmental parameters
   # porosity: set por.0 and por.inf equal for constant porosity
-  por_shape     <- 1                # to shape porosity profile (used as x.att in p.exp (cf. "03_grid_setup.R"))
+  por_shape     <- 0.17313          # to shape porosity profile (used as x.att in p.exp (cf. "03_grid_setup.R"))
   por.0         <- 0.8              # porosity at surface [-] =soil moisture content (at full saturation)
-  por.inf       <- 0.8              # porosity at infinite depth [-]
+  por.inf       <- 0.55              # porosity at infinite depth [-]
   
   P               <- 0.30           # True pressure [bar] 
   dens_dw         <- 2.70           # Density dry sediment [g cm-3]= [kg L-1] = [10^3kg m-3]; used for K_mMnO2 and K_mFeOH3
