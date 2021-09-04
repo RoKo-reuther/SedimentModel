@@ -53,11 +53,11 @@ shared_reaction_constants <- list(
   ## temperature constants: k=k_20*kt^(TC-20)
   kt_decomp=list(value=1.047, u_unit="-"),  # kt_decomp for decomposition of OM
   kt_microbial=list(value=1.07, u_unit="-"), # kt_microbial for microbial processes except decomposition of OM
-  kt_sorpP=list(value=1, u_unit="-"), # [-] temperature coefficient for phosphate sorption processes
+  kt_sorpP=list(value=1, u_unit="-"), # temperature coefficient for phosphate sorption processes
   
   ## PO4 adsorption
   adcap_FeOH3A=list(value=0.27, u_unit="molP/molFe"), # adsorption capacity of FeOH3
-  KadsP20=list(value=3.1e2, u_unit="m3_pw/molP") # adsorption equilibrium constant at 20°C !!!determine value!!! deltares: 0.1 m³/gP -> 0.1 m³/gP * 31 gP/molP = 3.1 m³/molP
+  KadsP20=list(value=3.1, u_unit="m3_pw/molP") # adsorption equilibrium constant at 20°C !!!determine value!!! deltares: 0.1 m³/gP -> 0.1 m³/gP * 31 gP/molP = 3.1 m³/molP
 )
 
 
@@ -68,7 +68,7 @@ shared_regulation_terms <- list(
   IAP_FeCO3="Fe_2 * DIC",
   omega_FeCO3="IAP_FeCO3/Ksp_FeCO3",
   #IAP_viv="(Fe_2**3) * (PO4**2)",
-  #omega_viv="IAP_viv/Ksp_viv"
+  #omega_viv="IAP_viv/Ksp_viv",
   
   ## temperature-correction-factor for reaction constants
   tempcorr_decomp="kt_decomp**(TC-20)", # for decomposition of OM
@@ -76,10 +76,9 @@ shared_regulation_terms <- list(
   
   ## PO4 adsorption (Langmuir)
   KadsP="KadsP20*kt_sorpP**(TC-20)", # [m3_pw/molP]
-  ads_t="FeOH3A*adcap_FeOH3A", # [mol/m3_sf]; total adsoprtion sites
-  ads_f="ads_t - adsorbed_P", # [mol/m3_sf]; free adsorption sites
+  ads_t="FeOH3A*adcap_FeOH3A", # [mol/m3_sf]; total adsorption sites
   aP_e="ads_t*(KadsP*PO4)/(1+KadsP*PO4)", # [mol/m3_sf]; adsobed phosphate at eqilibrium
-  phosphate_load_FeOH3A="(adsorbed_P+1e-50)/(FeOH3A+1e-20)"  #"ifelse(adsorbed_P==0, 0, adsorbed_P/FeOH3A)" # actual phosphate load of FeOH3A [molP/molFe]
+  phosphate_load_FeOH3A="ifelse(FeOH3A==0, 0, adsorbed_P/FeOH3A)" #"(adsorbed_P+1e-50)/(FeOH3A+1e-20)"  # actual phosphate load of FeOH3A [molP/molFe]
   # if more than one "adsorbens-specie" the phosphate load for e.g. one of two species is
   # phosphate_load_S1 = (adsorbed_P/(S1*adcap_S1*(S1/(S1 + S2)) + (S2*adcap_S2*(S2/(S1 + S2)))) * (adcap_S1*(S1/(S2 + S2)))
 )
@@ -259,7 +258,7 @@ reactions_collection <- list(
   #         involved_species=list(
   #           educts=list(
   #             "O2"=list(abbreviation="O2", stoic=2),
-  #             "CH4"=list(abbreviation="DIC", stoic=1)),
+  #             "CH4"=list(abbreviation="CH4", stoic=1)),
   #           products=list(
   #             "DIC"=list(abbreviation="DIC", stoic=1))),
   #         reaction_rate_constants=list(k6=list(value=!!!???!!! , u_unit="m3 mol-1 y-1")), # constant value missing; also comment out in Reinier's model
@@ -402,7 +401,7 @@ reactions_collection <- list(
                "PO4"=list(abbreviation="PO4", stoic=2)),
              products=list(
                "VivP"=list(abbreviation="VivP", stoic=1))),
-           reaction_rate_constants=list(k20=list(value=1.15e-1, u_unit="m3 mol-1 y-1")),
+           reaction_rate_constants=list(k20=list(value=1.15e-1, u_unit="m3 mol-1 y-1")), # 1.15e-1
            # Vivianite precipitation occurs when omega>1 at a rate kp*(omega-1) and does not precipitate if in equilibirum, needs to be oversaturated
            reaction_rates=list(equations=list(precip_rate_viv="k20*Fe_2*PO4*ifelse(omega_viv > 1, (omega_viv-1), 0)"), u_unit="mol/V_pw/y"),
            activated=FALSE),
@@ -417,7 +416,7 @@ reactions_collection <- list(
                "PO4"=list(abbreviation="PO4", stoic=2))),
            reaction_rate_constants=list(k21=list(value=1.15e-1, u_unit="y-1")),
            # vivianite dissolution occurs when omega<1, at a rate proportional to vivianite concentration and does not dissolute if no viv is present
-           reaction_rates=list(equations=list(diss_rate_viv="-k21*VivP*ifelse(omega_viv <= 1, (omega_viv-1), 0)"), u_unit="mol/V_sf/y"),
+           reaction_rates=list(equations=list(diss_rate_viv="-k21*VivP*ifelse(omega_viv < 1, (omega_viv-1), 0)"), u_unit="mol/V_sf/y"),
            activated=FALSE),
   
   E26=list(abbreviation="E26",
@@ -471,6 +470,18 @@ reactions_collection <- list(
            reaction_rates=list(equations=list(R20="k10 * tempcorr_microbial * FeS * H2S"), u_unit="mol/V_sf/y"),
            activated=TRUE),
   
+  E17=list(abbreviation="E17",
+           name="S0 transformation into SO4 and H2S",
+           involved_species=list(
+             educts=list(
+               "S0"=list(abbreviation="S0", stoic=4)),
+             products=list(
+               "H2S"=list(abbreviation="H2S", stoic=3),
+               "SO4"=list(abbreviation="SO4", stoic=1))),
+           reaction_rate_constants=list(k11=list(value=1.6e2, u_unit="y-1")),
+           reaction_rates=list(equations=list(R14="k11 * tempcorr_microbial * S0"), u_unit="mol/V_sf/y"),
+           activated=TRUE),
+  
   E18=list(abbreviation="E18",
            name="Pyrite formation",
            involved_species=list(
@@ -503,7 +514,7 @@ reactions_collection <- list(
                "PO4"=list(abbreviation="PO4", stoic=1)),
              products=list(
                "adsorbed_P"=list(abbreviation="adsorbed_P", stoic=1))),
-           reaction_rate_constants=list(k_adsP=list(value=365, u_unit="yr-1")),
+           reaction_rate_constants=list(k_adsP=list(value=3650, u_unit="yr-1")),
            reaction_rates=list(equations=list(R_adsP="k_adsP * (aP_e - adsorbed_P) * ifelse(aP_e > adsorbed_P, 1, 0)"), u_unit="mol/V_sf/y"),
            activated=TRUE),
   
@@ -514,8 +525,8 @@ reactions_collection <- list(
                "adsorbed_P"=list(abbreviation="adsorbed_P", stoic=1)),
              products=list(
                "PO4"=list(abbreviation="PO4", stoic=1))),
-           reaction_rate_constants=list(k_desP=list(value=365, u_unit="yr-1")),
-           reaction_rates=list(equations=list(R_desP1="-1 * k_desP * (aP_e - adsorbed_P) * ifelse(aP_e <= adsorbed_P, 1, 0)"), u_unit="mol/V_sf/y"),
+           reaction_rate_constants=list(k_desP=list(value=3650, u_unit="yr-1")),
+           reaction_rates=list(equations=list(R_desP1="-1 * k_desP * (aP_e - adsorbed_P) * ifelse(aP_e < adsorbed_P, 1, 0)"), u_unit="mol/V_sf/y"),
            activated=TRUE),
   
   E42=list(abbreviation="E42",
@@ -530,4 +541,3 @@ reactions_collection <- list(
            activated=TRUE)
     
 )
-# E17 is missing!!!
