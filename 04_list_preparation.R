@@ -23,7 +23,7 @@ create_model_lists <- function(){
   total_c_change <<- list() # 6) "total concentration change terms": transport term + reaction term for each species (dXdt = tranX$dC + RX)
   returnlist <<- "" # 7) list of content that Model function returns, formulated as text
   parameters <<- list() # 8) list of some parameters from "parameters_config" needed in the model function
-  # 9) store temperature function in .GlobalEnv
+  t_functions <<- list()# 9) build and store functions for data based ,time varying parameters (e.g. temperature, some boundary coditions)
   
   
   
@@ -92,9 +92,11 @@ create_model_lists <- function(){
     if (species$name == "adsorbed_P") {
       # varaibles content:
         # adsorbed_P is trasportated with FeOH3A, so FeOH3A's concentration and fluxes are used and corrected for the phosphate load
-        # if FeOH3A fluxes in the sediment at the upper or lower boundary it is assumed, that no adsorbed phosphate comes in with it, but
-        # adsorbed phosphate can flux out of the sediment together with FeOH3A
-      var_content <- "tran.1D(C=FeOH3A*phosphate_load_FeOH3A, flux.up=ifelse(tranFeOH3A$flux.up<0, tranFeOH3A$flux.up*phosphate_load_FeOH3A, 0), flux.down=ifelse(tranFeOH3A$flux.down>0, tranFeOH3A$flux.down*phosphate_load_FeOH3A, 0), D=grid_collection$Db.grid, v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)"
+        # if FeOH3A fluxes in the sediment at the upper boundary it is assumed, that no adsorbed phosphate comes in with it
+        # if FeOH3A fluxes in the sediment at the lower boundary it is assumed, that the incoming FeOH3 has a phosphate load equal the bottom sediment layer
+        # adsorbed phosphate can flux out of the sediment together with FeOH3A on both boundarys with phosphate load at top/bottom layer
+      #var_content <- "tran.1D(C=FeOH3A*phosphate_load_FeOH3A, flux.up=ifelse(tranFeOH3A$flux.up<0, tranFeOH3A$flux.up*phosphate_load_FeOH3A[1], 0), flux.down=ifelse(tranFeOH3A$flux.down>0, tranFeOH3A$flux.down*phosphate_load_FeOH3A, 0), D=grid_collection$Db.grid, v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)"
+      var_content <- "tran.1D(C=FeOH3A*phosphate_load_FeOH3A, flux.up=ifelse(tranFeOH3A$flux.up<0, tranFeOH3A$flux.up*phosphate_load_FeOH3A[1], 0), flux.down=tranFeOH3A$flux.down*phosphate_load_FeOH3A[N], D=grid_collection$Db.grid, v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)"
       # store tranX-term as text in "transpor_terms"-list ...
       transport_terms[[var_name]] <<- var_content
     }
@@ -292,8 +294,20 @@ create_model_lists <- function(){
   )
   
   
-  # 9) assign temperature function
-  TC_func <<- TC_func
+  # 9) data based functions(t)
+    ## temperature
+    # load in data
+    temp.data <- read.delim2("./imports/temperature.csv")
+    # "extrapolate" loaded partial one-year time series to get complete year cycle in spline
+    temp.time <- c(temp.data[["time"]]-1, temp.data[["time"]], temp.data[["time"]]+1)
+    temp.temperature <- rep(temp.data[["temperature"]], 3)
+    # evaluate the spline
+    temp.spline <- smooth.spline(temp.time, temp.temperature)
+    # store approximated function in list
+    t_functions[["TC_func"]] <<- approxfun(temp.spline)
+    # check spline
+    plot(temp.temperature ~ temp.time)
+    lines(temp.spline, col="blue")
 }
 
 create_model_lists()

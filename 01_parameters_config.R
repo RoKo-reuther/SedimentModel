@@ -19,10 +19,7 @@
   v               <- 10*1e-3        # Sedimentation rate: advection at top [m y-1]
   Db              <- 1e-4           # Mixing rate of the sediment; Bioturbation coefficient [m2 y-1]
   # temperature (potentially varying) [°C]
-  TC_func <- function(t){
-    TC <- 10 # set standard value; at least used for steady state calculation
-    return(TC)
-  }         
+    # the temperature function is defined in "04_list_preparation", section 9        
   
 # stoichiometric relationships
   CtoN            <- 106/16          # C:N ratio after Redfield

@@ -13,7 +13,7 @@ Model <- function(t, state, pars) {
   
   
   ## get current temperature
-  TC <- TC_func(t)
+  TC <- t_functions$TC_func(t)
 
   
   ## Define the reaction terms
@@ -75,8 +75,8 @@ Model <- function(t, state, pars) {
   for (i in seq_along(total_c_change)){
     assign(names(total_c_change[i]), eval(parse(text=total_c_change[[i]]))) 
   }
-  
-    
+
+      
   ## return statement
   return(eval(parse(text = returnlist)))
 }
