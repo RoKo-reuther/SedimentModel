@@ -13,7 +13,7 @@ Model <- function(t, state, pars) {
   
   
   ## get current temperature
-  TC <- t_functions$TC_func(t)
+  TC <- parameters$TC_func(t%%1)
 
   
   ## Define the reaction terms
@@ -25,8 +25,6 @@ Model <- function(t, state, pars) {
     # assign shared regulation terms
     for (i in seq_along(shared_reg_terms)){
       assign(names(shared_reg_terms[i]), eval(parse(text=shared_reg_terms[[i]])))
-      #print(names(shared_reg_terms[i]))
-      #print(eval(parse(text=shared_reg_terms[[i]])))
     }
 
     # assign rate equations (except R_desP2)
@@ -62,7 +60,7 @@ Model <- function(t, state, pars) {
     }
     # assign varying (time dependent) values
     for (i in seq_along(boundary_conditions$varying)){
-      assign(names(boundary_conditions$varying[i]), boundary_conditions$varying[[i]](t))
+      assign(names(boundary_conditions$varying[i]), boundary_conditions$varying[[i]](t%%1))
     }
     
     # evaluete "transport_terms"

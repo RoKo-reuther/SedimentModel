@@ -26,16 +26,16 @@ chemical_base_main <- function(specify=FALSE, reaction_list){
   }
 
   #*************************************
-  # create "occuring_reactions"-list
+  # create "occurring_reactions"-list
   #*************************************
-  # Create list with occuring reactions based on activated reactions and species in "chemical_base_config"-script.
+  # Create list with occurring reactions based on activated reactions and species in "chemical_base_config"-script.
   # Reactions can't occur if at least one educt is missing (required species defined in reactions_collection).
   # This can happen, if a species was disabled manually in species_collection (activated=FALSE).
   
   # create empty list
-  occuring_reactions <<- list()
+  occurring_reactions <<- list()
   
-  # create "occuring_reactions"-list
+  # create "occurring_reactions"-list
   # go through reactions...
   for (reaction in reactions_collection){
     # ...and check if reaction is activated
@@ -50,31 +50,31 @@ chemical_base_main <- function(specify=FALSE, reaction_list){
           checkup <- FALSE
         }
       }
-      # use checkup to decide if reaction can be added to occuring_reactions-list
+      # use checkup to decide if reaction can be added to occurring_reactions-list
       if (checkup==TRUE){
-        # add reaction to occuring_reactions-list...
-        occuring_reactions <<- c(occuring_reactions, list(reaction))
-        # ...and set reaction name to make occuring_reactions-data clearer
-        names(occuring_reactions)[length(occuring_reactions)] <<- reaction$abbreviation
+        # add reaction to occurring_reactions-list...
+        occurring_reactions <<- c(occurring_reactions, list(reaction))
+        # ...and set reaction name to make occurring_reactions-data clearer
+        names(occurring_reactions)[length(occurring_reactions)] <<- reaction$abbreviation
       }
     } 
   }
 
 
   #*************************************
-  # create "occuring_species"-list
+  # create "occurring_species"-list
   #*************************************
-  # Create list with occuring species based on occuring-reactions list.
+  # Create list with occurring species based on occurring-reactions list.
   
   # create empty list
-  occuring_species <<- list()
+  occurring_species <<- list()
   
-  # go through occuring reactions...
-  for (reaction in occuring_reactions){
-    # add involved species to "occuring_species"-list, if it is not in yet and not manually deactivated
+  # go through occurring reactions...
+  for (reaction in occurring_reactions){
+    # add involved species to "occurring_species"-list, if it is not in yet and not manually deactivated
     for (species in c(reaction$involved_species$educts, reaction$involved_species$products)){
-      if ((!exists(species$abbreviation, occuring_species))&(species_collection[[species$abbreviation]]$activated==TRUE)){
-        occuring_species <<- c(occuring_species, species_collection[species$abbreviation])
+      if ((!exists(species$abbreviation, occurring_species))&(species_collection[[species$abbreviation]]$activated==TRUE)){
+        occurring_species <<- c(occurring_species, species_collection[species$abbreviation])
       }
     }
   }
@@ -83,27 +83,27 @@ chemical_base_main <- function(specify=FALSE, reaction_list){
   #*************************************
   # adjust created lists
   #*************************************
-  # adjust "occuring_species$involved_in"-list and "occuring_reactions$involved_species"-list
-  # 1) add occuring reactions to "occuring_species$involved_in"-list
-  # 2) delete not occuring species out of "occuring_reactions$involved_species"-list
+  # adjust "occurring_species$involved_in"-list and "occurring_reactions$involved_species"-list
+  # 1) add occurring reactions to "occurring_species$involved_in"-list
+  # 2) delete not occurring species out of "occurring_reactions$involved_species"-list
 
-  # go through occuring reactions...
-  for (reaction in occuring_reactions){
+  # go through occurring reactions...
+  for (reaction in occurring_reactions){
     for (species in c(reaction$involved_species$educts, reaction$involved_species$products)){
-      # check if species is in "occuring_species"-list
-      if (exists(species$abbreviation, occuring_species)){
-        # add occuring reactions to "occuring_species$involved_in"-list
-        occuring_species[[species$abbreviation]]$involved_in <<- c(occuring_species[[species$abbreviation]]$involved_in, reaction$abbreviation)
+      # check if species is in "occurring_species"-list
+      if (exists(species$abbreviation, occurring_species)){
+        # add occurring reactions to "occurring_species$involved_in"-list
+        occurring_species[[species$abbreviation]]$involved_in <<- c(occurring_species[[species$abbreviation]]$involved_in, reaction$abbreviation)
       }
       else {
-        # delete not occuring species out of "occuring_reactions$involved_species"-list (that only can be products ensured by selection of occuring reactions)
-        occuring_reactions[[reaction$abbreviation]]$involved_species$products[species$abbreviation] <<- NULL
+        # delete not occurring species out of "occurring_reactions$involved_species"-list (that only can be products ensured by selection of occurring reactions)
+        occurring_reactions[[reaction$abbreviation]]$involved_species$products[species$abbreviation] <<- NULL
       }
     }
   }
 }
 
-#chemical_base_main(specify=TRUE, list("E1", "E2", "E3", "E4a", "E4b", "E5", "E6", "E8", "E9a", "E9b", "E12", "E14a1", "E14a2", "E15", "E19", "E27", "E28", "E29a1", "E29a2", "E30a", "E32a", "E22", "E33", "E24", "E25", "E26", "E10", "E11", "E16", "E18", "E23"))
+chemical_base_main(specify=TRUE, list("E1", "E2", "E3", "E4a", "E4b", "E5", "E6", "E8", "E9a", "E9b", "E12", "E14a1", "E14a2", "E15", "E19", "E27", "E28", "E29a1", "E29a2", "E30a", "E32a", "E22", "E33", "E24", "E25", "E26", "E10", "E11", "E16", "E18", "E23"))
 chemical_base_main()
 
 #***************************

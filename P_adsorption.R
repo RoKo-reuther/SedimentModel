@@ -25,12 +25,18 @@
   
 ## draw Langmuir isotherme
 TC <- 10
-FeOH3A <- 1
-adcap_FeOH3 <- 0.27
-ads_t <- FeOH3A*adcap_FeOH3  
+FeOH3A <- 100
+adcap_FeOH3 <- 0.01552698
+# adcap calculation: Karel: 92.039 µmol/g
+# (ads_t [mol_aP/m³_sf] / FeOH3A [mol_FeOH3A/m³_sf]) * MW_FeOH3A^-1 [g/mol_FeOH3A] * 1e6 µmol/mol = 92.039 µmol/g
+# ads_t [mol_aP/m³_sf] / FeOH3A [mol_FeOH3A/m³_sf] = adcap_FeOH3A [mol_aP/mol_FeOH3A]
+# adcap_FeOH3A [mol_aP/mol_FeOH3A] = 92.039 µmol/g * MW_FeOH3A [g/mol_FeOH3A] * 1e-6 [mol/µmol]
+# with 168.7 g/mol (ferrihydrite)
+# 92.039 µmol/g * 168.7 g/mol * 1e-6 mol/µmol = 0.01552698 mol_aP/mol_FeOH3A
+ads_t <- FeOH3A*adcap_FeOH3
   
 aPe <- function(PO4){
-  KadsP20 <- 3.1e2
+  KadsP20 <- 143 # Karel: 0.143 L/µmol * 1e-3 m³/L * 1e6 µmol/mol = 143 m³/mol
   kt_sorpP <- 1
   KadsP <- KadsP20*kt_sorpP**(TC-20)
   aP_e <- ads_t*(KadsP*PO4)/(1+KadsP*PO4)

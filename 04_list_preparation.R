@@ -3,7 +3,7 @@
 #                                             MODEL PREPERATION                                           #
 ###########################################################################################################
 
-# create lists that store rate-equation-functions and rate-constants based on "occuring_reactions"-list, conversion factors, "total concentration change terms" RX
+# create lists that store rate-equation-functions and rate-constants based on "occurring_reactions"-list, conversion factors, "total concentration change terms" RX
 create_model_lists <- function(){
   # source files
   source(file=configs$parameters_config, local=TRUE)
@@ -16,30 +16,29 @@ create_model_lists <- function(){
   names_out <<- c() # 2.2) used to label steady-state output (in ode.1D it is only used for plotting)
   # 3) boundary conditions_old: out of order
   transport_terms <<- list() # 4) store tranX-terms as text
-  rate_constants <<- list() # 5.1) list of all reaction rate constants in "shared_reaction_constants"-list and occuring_reactions"-list
-  rate_equations <<- list() # 5.2) list of all reaction rate equations in "occuring_reactions"-list
+  rate_constants <<- list() # 5.1) list of all reaction rate constants in "shared_reaction_constants"-list and occurring_reactions"-list
+  rate_equations <<- list() # 5.2) list of all reaction rate equations in "occurring_reactions"-list
   shared_reg_terms <<- list() # 5.3) assign "shared_reaction_terms" from "chemical_base_config" to global environment
   reaction_terms <<- list() # 5.4) calculate change of a species concentration through chemical processes by summing up the reaction rates of reactions this species is involved in
   total_c_change <<- list() # 6) "total concentration change terms": transport term + reaction term for each species (dXdt = tranX$dC + RX)
   returnlist <<- "" # 7) list of content that Model function returns, formulated as text
   parameters <<- list() # 8) list of some parameters from "parameters_config" needed in the model function
-  t_functions <<- list()# 9) build and store functions for data based ,time varying parameters (e.g. temperature, some boundary coditions)
   
   
   
   # 1) create operational species list
-  for (species in occuring_species){
+  for (species in occurring_species){
     # if there are subspecies ...
     if (length(species$subspecies) > 0) {
       # ... create new species-entries for each subspecies; copy information from "mother-species" for further processing.
       for (i in seq_along(species$subspecies)){
         species_operational[[species$subspecies[[i]]]] <<- c(species["abbreviation"], if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]}, species["involved_in"], species["phase"], name = species$subspecies[[i]], number=i) 
         #"number" stored to match the right reaction rate later on
-        # "abbreviation" stored to get information out of "occuring_reactions"-list (reference to "mother-species")
+        # "abbreviation" stored to get information out of "occurring_reactions"-list (reference to "mother-species")
       }
     }
     else{
-      # if there is no subspecies: copy entry partly from "occuring_species"-list to "species_operational"-list
+      # if there is no subspecies: copy entry partly from "occurring_species"-list to "species_operational"-list
       species_operational[[species$abbreviation]] <<- c(species["abbreviation"], if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]}, species["involved_in"], species["phase"], name = species$abbreviation)
     }
   }
@@ -122,8 +121,8 @@ create_model_lists <- function(){
   
   
   # 5.1.2 & 5.2)
-  # go through "occuring_reactions"-list
-  for (element in occuring_reactions){
+  # go through "occurring_reactions"-list
+  for (element in occurring_reactions){
     
     # 5.1.2) extract reaction rate constants that are only used in one reaction
     for (i in seq_along(element$reaction_rate_constants)){
@@ -159,40 +158,40 @@ create_model_lists <- function(){
       # check some properties and store them in helping variables to build RX-term later
       
       # is species educt in this reaction? -> True: minus-sign, False: plus-sign
-      educt <- exists(species$abbreviation, occuring_reactions[[element]]$involved_species$educts)
+      educt <- exists(species$abbreviation, occurring_reactions[[element]]$involved_species$educts)
       
-      # get stoichiometry-factor out of "occuring_reactions"-list
+      # get stoichiometry-factor out of "occurring_reactions"-list
       # differenciate between educts and products because of the "path"
       if (educt){
-        stoic <- occuring_reactions[[element]]$involved_species$educts[[species$abbreviation]]$stoic
+        stoic <- occurring_reactions[[element]]$involved_species$educts[[species$abbreviation]]$stoic
       }
       else {
-        stoic <- occuring_reactions[[element]]$involved_species$products[[species$abbreviation]]$stoic
+        stoic <- occurring_reactions[[element]]$involved_species$products[[species$abbreviation]]$stoic
       }
       
       # check if/which conversion factor is needed
       # if species is solute and unit of reaction rate is "mol/V_sf/y" -> q; if species is solid and unit of reaction rate is "mol/V_pw/y" -> r
-      if ((species$phase=="solute")&(occuring_reactions[[element]]$reaction_rates$u_unit=="mol/V_sf/y")) conversion <- "q"
-      else if ((species$phase=="solid")&(occuring_reactions[[element]]$reaction_rates$u_unit=="mol/V_pw/y")) conversion <- "r"
+      if ((species$phase=="solute")&(occurring_reactions[[element]]$reaction_rates$u_unit=="mol/V_sf/y")) conversion <- "q"
+      else if ((species$phase=="solid")&(occurring_reactions[[element]]$reaction_rates$u_unit=="mol/V_pw/y")) conversion <- "r"
       else conversion <- 1
       
       # get reaction rate name(s)
       # does reaction occur with two different rates, depending on this species? (e.g. different degrees of degradability of organic matter)
-      if ((length(occuring_reactions[[element]]$varying_rates) == 0) || (occuring_reactions[[element]]$varying_rates != species$abbreviation)){
+      if ((length(occurring_reactions[[element]]$varying_rates) == 0) || (occurring_reactions[[element]]$varying_rates != species$abbreviation)){
         # yes: either there is no differentiation of reaction rates for this reaction or it is not differentiated "for this species"
         # get reaction rate name(s) (more rates for different degrees of degradability, but not created for this species)
         # and store them in "reaction_rates"-string, connected by plus-sign, in form of a function call
         reaction_rates <- ""
-        for (i in seq_along(occuring_reactions[[element]]$reaction_rates$equations)){
-          rr_temp <- paste("+", names(occuring_reactions[[element]]$reaction_rates$equations[i]), sep = "")
+        for (i in seq_along(occurring_reactions[[element]]$reaction_rates$equations)){
+          rr_temp <- paste("+", names(occurring_reactions[[element]]$reaction_rates$equations[i]), sep = "")
           reaction_rates <- paste(reaction_rates, rr_temp)
         }
       }
-      else if (occuring_reactions[[element]]$varying_rates == species$abbreviation){
+      else if (occurring_reactions[[element]]$varying_rates == species$abbreviation){
         # yes: there are different reaction rate equations stored in the reaction description; the different rates were distinguished for the current species, among others
         # get reaction rate name (the one that fits the current subspecies; this is estimated by the "number" element, stored for "subspecies" in the species_operational"-list)...
         # ...and store it in "reaction_rate"-string in form of a function call
-        reaction_rates <- names(occuring_reactions[[element]]$reaction_rates$equations[species$number])
+        reaction_rates <- names(occurring_reactions[[element]]$reaction_rates$equations[species$number])
       }
       
       # create summand for this reaction ...
@@ -290,24 +289,9 @@ create_model_lists <- function(){
     S = S,  # needed for diffcoeff function
     P = P,  # needed for diffcoeff function
     Db = Db, # needed for diffusion coefficient calculation
-    times = times # needed to solve transient model
+    times = times, # needed to solve transient model
+    TC_func = TC_func # function for time varying temperature
   )
-  
-  
-  # 9) data based functions(t)
-    ## temperature
-    # load in data
-    temp.data <- read.delim2("./imports/temperature.csv")
-    # "extrapolate" loaded partial one-year time series to get complete year cycle in spline
-    temp.time <- c(temp.data[["time"]]-1, temp.data[["time"]], temp.data[["time"]]+1)
-    temp.temperature <- rep(temp.data[["temperature"]], 3)
-    # evaluate the spline
-    temp.spline <- smooth.spline(temp.time, temp.temperature)
-    # store approximated function in list
-    t_functions[["TC_func"]] <<- approxfun(temp.spline)
-    # check spline
-    plot(temp.temperature ~ temp.time)
-    lines(temp.spline, col="blue")
 }
 
 create_model_lists()

@@ -272,7 +272,7 @@ molar_mass_balance <- function(species_of_interest, mol_content, a, b){
           int_flx_up <- integrate(flux_up_func, lower = parameters$times[a], upper = parameters$times[b])
         }
       }
-        
+
       # fluxes at lower sediment boundary: linear integration for all species
         flux_down_func <- approxfun(parameters$times, flux_down, method = "linear")
         int_flx_down <- integrate(flux_down_func, lower = parameters$times[a], upper = parameters$times[b])

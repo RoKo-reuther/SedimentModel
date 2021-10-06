@@ -16,7 +16,7 @@
   )
   
 ### set up model
-  ## set up the chemical base: occuring species and reactions, create a diagram and have a look at it
+  ## set up the chemical base: occurring species and reactions, create a diagram and have a look at it
     source("022_chemical_base_func.R")
     source("023_chemical_base_draw_diagram.R")
       # export to html-file: requires "pandoc"
@@ -37,12 +37,13 @@
       
 ### Solve the model: Steady state
 print(system.time(
-  ss <- steady.1D(y = state, 
+  ss <- steady.1D(y = state,
+                  time = 0.21, # oxic steady state
                   func = Model, 
                   parms = NULL, 
                   names = names_out, 
                   method = "stodes",
-                  verbose=TRUE,
+                  #verbose=TRUE,
                   pos = TRUE,
                   nspec = length(names_out) #,rtol = 1e-16,ctol = 1e-16 ,atol = 1e-16
   )))

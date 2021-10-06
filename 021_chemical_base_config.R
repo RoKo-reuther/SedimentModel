@@ -10,7 +10,7 @@
 # "dummy_species"=list(abbreviation="d_s", name="dummy species", {subspecies=list("subsp1", "subsp2"), involved_in=list(), phase="solid / solute", activated=TRUE)
 
 species_collection <- list(
-  "OM"=list(abbreviation="OM", name="organic matter", subspecies=list("OrgCA", "OrgCB"), involved_in=list(), phase="solid", activated=TRUE),
+  "OM"=list(abbreviation="OM", name="organic matter", subspecies=list("OrgCA", "OrgCB", "OrgCC"), involved_in=list(), phase="solid", activated=TRUE),
   "O2"=list(abbreviation="O2", name="oxygen", abbr_diffcoeff="O2", involved_in=list(), phase="solute", activated=TRUE),
   "NH4"=list(abbreviation="NH4", name="ammonium", abbr_diffcoeff="NH4", involved_in=list(), phase="solute", activated=TRUE),
   "PO4"=list(abbreviation="PO4", name="phosphate (pool)", abbr_diffcoeff="PO4", involved_in=list(), phase="solute", activated=TRUE),
@@ -72,13 +72,13 @@ shared_regulation_terms <- list(
   
   ## temperature-correction-factor for reaction constants
   tempcorr_decomp="kt_decomp**(TC-20)", # for decomposition of OM
-  tempcorr_microbial="kt_microbial**(TC-20)", # for microbial processes except decomposition of OM
+  tempcorr_microbial="kt_microbial**(TC-20)" # for microbial processes except decomposition of OM
   
   ## PO4 adsorption (Langmuir)
-  KadsP="KadsP20*kt_sorpP**(TC-20)", # [m3_pw/molP]
-  ads_t="FeOH3A*adcap_FeOH3A", # [mol/m3_sf]; total adsorption sites
-  aP_e="ads_t*(KadsP*PO4)/(1+KadsP*PO4)", # [mol/m3_sf]; adsobed phosphate at eqilibrium
-  phosphate_load_FeOH3A="ifelse(FeOH3A==0, 0, adsorbed_P/FeOH3A)" #"(adsorbed_P+1e-50)/(FeOH3A+1e-20)"  # actual phosphate load of FeOH3A [molP/molFe]
+  #KadsP="KadsP20*kt_sorpP**(TC-20)", # [m3_pw/molP]
+  #ads_t="FeOH3A*adcap_FeOH3A", # [mol/m3_sf]; total adsorption sites
+  #aP_e="ads_t*(KadsP*PO4)/(1+KadsP*PO4)", # [mol/m3_sf]; adsobed phosphate at eqilibrium
+  #phosphate_load_FeOH3A="ifelse(FeOH3A==0, 0, adsorbed_P/FeOH3A)" #"(adsorbed_P+1e-50)/(FeOH3A+1e-20)"  # actual phosphate load of FeOH3A [molP/molFe]
   # if more than one "adsorbens-specie" the phosphate load for e.g. one of two species is
   # phosphate_load_S1 = (adsorbed_P/(S1*adcap_S1*(S1/(S1 + S2)) + (S2*adcap_S2*(S2/(S1 + S2)))) * (adcap_S1*(S1/(S2 + S2)))
 )
@@ -111,7 +111,8 @@ reactions_collection <- list(
           reaction_rates=list(
             equations=list(
               R1a="k_alpha * tempcorr_decomp * OrgCA * O2 / (K_mO2 + O2)",
-              R1b="k_beta * tempcorr_decomp  * OrgCB * O2 / (K_mO2 + O2)"),
+              R1b="k_beta * tempcorr_decomp  * OrgCB * O2 / (K_mO2 + O2)",
+              R1c="0"),
             u_unit="mol/V_sf/y"),
           varying_rates="OM",
           activated=TRUE),
@@ -131,7 +132,8 @@ reactions_collection <- list(
           reaction_rates=list(
             equations=list(
               RNa="k_alpha * tempcorr_decomp * OrgCA  * (NO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              RNb="k_beta * tempcorr_decomp  * OrgCB  * (NO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))"),
+              RNb="k_beta * tempcorr_decomp  * OrgCB  * (NO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
+              RNc="0"),
             u_unit="mol/V_sf/y"),
           varying_rates="OM",
           activated=TRUE),
@@ -151,7 +153,8 @@ reactions_collection <- list(
           reaction_rates=list(
             equations=list(
               RMa="k_alpha * tempcorr_decomp * OrgCA * (MnO2A / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              RMb="k_beta * tempcorr_decomp  * OrgCB * (MnO2A / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))"),
+              RMb="k_beta * tempcorr_decomp  * OrgCB * (MnO2A / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
+              RMc="0"),
             u_unit="mol/V_sf/y"),
           varying_rates="OM",
           activated=TRUE),
@@ -171,7 +174,8 @@ reactions_collection <- list(
            reaction_rates=list(
              equations=list(
                R2a_Ox="k_alpha * tempcorr_decomp * OrgCA * (FeOH3A / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-               R2b_Ox="k_beta * tempcorr_decomp  * OrgCB * (FeOH3A / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))"),
+               R2b_Ox="k_beta * tempcorr_decomp  * OrgCB * (FeOH3A / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
+               R2c_Ox="0"),
              u_unit="mol/V_sf/y"),
            varying_rates="OM",
            activated=TRUE),
@@ -191,7 +195,8 @@ reactions_collection <- list(
           reaction_rates=list(
             equations=list(
               R3a="k_alpha * tempcorr_decomp * OrgCA * (SO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              R3b="k_beta * tempcorr_decomp  * OrgCB * (SO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))"),
+              R3b="k_beta * tempcorr_decomp  * OrgCB * (SO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
+              R3c="0"),
             u_unit="mol/V_sf/y"),
           varying_rates="OM",
           activated=TRUE),
@@ -210,7 +215,8 @@ reactions_collection <- list(
           reaction_rates=list(
             equations=list(
               R4a="k_alpha * tempcorr_decomp * OrgCA * (K_mSO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              R4b="k_beta * tempcorr_decomp  * OrgCB * (K_mSO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))"),
+              R4b="k_beta * tempcorr_decomp  * OrgCB * (K_mSO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
+              R4c="0"),
             u_unit="mol/V_sf/y"),
           varying_rates="OM",
           activated=TRUE),
@@ -253,17 +259,17 @@ reactions_collection <- list(
            reaction_rates=list(equations=list(R8="k5 * tempcorr_microbial * O2 * H2S"), u_unit="mol/V_pw/y"),
            activated=TRUE),
   
-  # E13=list(abbreviation="E13",
-  #         name="Aerobic methane oxidation",
-  #         involved_species=list(
-  #           educts=list(
-  #             "O2"=list(abbreviation="O2", stoic=2),
-  #             "CH4"=list(abbreviation="CH4", stoic=1)),
-  #           products=list(
-  #             "DIC"=list(abbreviation="DIC", stoic=1))),
-  #         reaction_rate_constants=list(k6=list(value=!!!???!!! , u_unit="m3 mol-1 y-1")), # constant value missing; also comment out in Reinier's model
-  #         reaction_rates=list(equations=list(R9="k6 * tempcorr_microbial * O2 * CH4"), u_unit="mol/V_pw/y"),
-  #         activated=TRUE),
+  E13=list(abbreviation="E13",
+          name="Aerobic methane oxidation",
+          involved_species=list(
+            educts=list(
+              "O2"=list(abbreviation="O2", stoic=2),
+              "CH4"=list(abbreviation="CH4", stoic=1)),
+            products=list(
+              "DIC"=list(abbreviation="DIC", stoic=1))),
+          reaction_rate_constants=list(k6=list(value=10e7 , u_unit="m3 mol-1 y-1")),
+          reaction_rates=list(equations=list(R9="k6 * tempcorr_microbial * O2 * CH4"), u_unit="mol/V_pw/y"),
+          activated=TRUE),
   
   E14a=list(abbreviation="E14a",
              name="Feoxa-reduction coupled to sulphide oxidation",
@@ -516,7 +522,7 @@ reactions_collection <- list(
                "adsorbed_P"=list(abbreviation="adsorbed_P", stoic=1))),
            reaction_rate_constants=list(k_adsP=list(value=3650, u_unit="yr-1")),
            reaction_rates=list(equations=list(R_adsP="k_adsP * (aP_e - adsorbed_P) * ifelse(aP_e > adsorbed_P, 1, 0)"), u_unit="mol/V_sf/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E41=list(abbreviation="E41",
            name="Phosphate desorption (Langmuir equilibrium regulated)",
@@ -527,7 +533,7 @@ reactions_collection <- list(
                "PO4"=list(abbreviation="PO4", stoic=1))),
            reaction_rate_constants=list(k_desP=list(value=3650, u_unit="yr-1")),
            reaction_rates=list(equations=list(R_desP1="-1 * k_desP * (aP_e - adsorbed_P) * ifelse(aP_e < adsorbed_P, 1, 0)"), u_unit="mol/V_sf/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E42=list(abbreviation="E42",
            name="Phosphate desorption (release of adsorbed phosphate through chemical reactions)",
@@ -538,6 +544,6 @@ reactions_collection <- list(
                "PO4"=list(abbreviation="PO4", stoic=1))),
            reaction_rate_constants=list(), # none
            reaction_rates=list(equations=list(R_desP2="ifelse(RFeOH3A < 0, -1*RFeOH3A*phosphate_load_FeOH3A, 0)"), u_unit="mol/V_sf/y"),
-           activated=TRUE)
+           activated=FALSE)
     
 )
