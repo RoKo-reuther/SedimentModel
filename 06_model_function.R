@@ -27,26 +27,40 @@ Model <- function(t, state, pars) {
       assign(names(shared_reg_terms[i]), eval(parse(text=shared_reg_terms[[i]])))
     }
 
-    # assign rate equations (except R_desP2)
-    temp_list <- rate_equations[names(rate_equations) != "R_desP2"]
-    for (i in seq_along(temp_list)){
-      assign(names(temp_list[i]), eval(parse(text=temp_list[[i]]))) 
-    }
-  
-    # assign reaction terms (except PO4 and adsorbed_P)
-    temp_list <- reaction_terms[names(reaction_terms) != "Radsorbed_P" &  names(reaction_terms) != "RPO4"]
-    for (i in seq_along(temp_list)){
-      assign(names(temp_list[i]), eval(parse(text=temp_list[[i]]))) 
+    # two possibilities: either WITH P adsorption or WITHOUT
+    if ("adsorbed_P" %in% names(species_operational)){
+      # assign rate equations (except R_desP2)
+      temp_list <- rate_equations[names(rate_equations) != "R_desP2"]
+      for (i in seq_along(temp_list)){
+        assign(names(temp_list[i]), eval(parse(text=temp_list[[i]]))) 
+      }
+      
+      # assign reaction terms (except PO4 and adsorbed_P)
+      temp_list <- reaction_terms[names(reaction_terms) != "Radsorbed_P" &  names(reaction_terms) != "RPO4"]
+      for (i in seq_along(temp_list)){
+        assign(names(temp_list[i]), eval(parse(text=temp_list[[i]]))) 
+      }
+      
+      # assign R_desP2 (now RFeOH3A is known, which is needed to evaluate R_desP)
+      assign("R_desP2", eval(parse(text=rate_equations["R_desP2"])))
+      
+      # assign RPO4 and Radsorbed_P (now R_desP2 is known, which is needed to evaluate those)
+      temp_list <- reaction_terms[names(reaction_terms) == "Radsorbed_P" |  names(reaction_terms) == "RPO4"]
+      for (i in seq_along(temp_list)){
+        assign(names(temp_list[i]), eval(parse(text=temp_list[[i]]))) 
+      }
+    } else {
+      # assign rate equations
+      for (i in seq_along(rate_equations)){
+        assign(names(rate_equations[i]), eval(parse(text=rate_equations[[i]]))) 
+      }
+      
+      # assign reaction terms
+      for (i in seq_along(reaction_terms)){
+        assign(names(reaction_terms[i]), eval(parse(text=reaction_terms[[i]]))) 
+      }
     }
     
-    # assign R_desP2 (now RFeOH3A is known, which is needed to evaluate R_desP)
-    assign("R_desP2", eval(parse(text=rate_equations["R_desP2"])))
-    
-    # assign RPO4 and Radsorbed_P (now R_desP2 is known, which is needed to evaluate those)
-    temp_list <- reaction_terms[names(reaction_terms) == "Radsorbed_P" |  names(reaction_terms) == "RPO4"]
-    for (i in seq_along(temp_list)){
-      assign(names(temp_list[i]), eval(parse(text=temp_list[[i]]))) 
-    }
     
     
   ## Define the transport terms
@@ -63,7 +77,7 @@ Model <- function(t, state, pars) {
       assign(names(boundary_conditions$varying[i]), boundary_conditions$varying[[i]](t%%1))
     }
     
-    # evaluete "transport_terms"
+    # evaluate "transport_terms"
     for (i in seq_along(transport_terms)){
       assign(names(transport_terms[i]), eval(parse(text=transport_terms[[i]]))) 
     }

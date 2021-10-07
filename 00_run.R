@@ -38,7 +38,7 @@
 ### Solve the model: Steady state
 print(system.time(
   ss <- steady.1D(y = state,
-                  time = 0.21, # oxic steady state
+                  time = 0.35, # oxic steady state
                   func = Model, 
                   parms = NULL, 
                   names = names_out, 
