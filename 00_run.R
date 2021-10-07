@@ -18,6 +18,9 @@
 ### set up model
   ## set up the chemical base: occurring species and reactions, create a diagram and have a look at it
     source("022_chemical_base_func.R")
+  
+  # select reactions by name:
+  chemical_base_main(specify=TRUE, list("E1", "E2", "E3", "E4a", "E4b", "E5", "E6"))
     source("023_chemical_base_draw_diagram.R")
       # export to html-file: requires "pandoc"
       visSave(model_diagram, file=paste(wd_path, "/exports/interactive_diagram/model.html", sep=""), selfcontained=TRUE, background="white")

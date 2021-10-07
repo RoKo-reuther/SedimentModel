@@ -121,4 +121,4 @@ chemical_base_main()
 # clean_up
 #***************************
 # clear workspace: remove auxiliary variables and collections
-rm(chemical_base_main)
+#rm(chemical_base_main)
