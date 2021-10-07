@@ -24,9 +24,9 @@ boundary_conditions <- list(
     
     
     ## boundary SWI fluxes concentrations for solids [mol m-2 y-1]
-    F_OrgCA       = 5,          # Org; Highly reactive: Check Multy G model approach (Westrich and Berner, 1984); 2.5-13
-    F_OrgCB       = 2,          # Org; less reactive
-    F_OrgCC       = 1,          # Org; non reactive
+    F_OrgCA       = 2.5,          # Org; Highly reactive: Check Multy G model approach (Westrich and Berner, 1984); 2.5-13
+    F_OrgCB       = 1,          # Org; less reactive
+    F_OrgCC       = 2,          # Org; non reactive
     F_MnO2A       = 1,          # MnO2; Highly reactive
     F_VivP        = 0,          # Fe3(PO4)2 flux at SWI
     F_FeS         = 0,          # FeS 

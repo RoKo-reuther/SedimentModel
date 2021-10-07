@@ -4,7 +4,7 @@
 ###########################################################################################################
 
 # Grid domain
-  L <- 0.25    # depth of sediment domain [m]
+  L <- 0.3    # depth of sediment domain [m]
   N <- 30   # number of grid layers
 
 # Environmental parameters
@@ -17,7 +17,7 @@
   dens_dw         <- 2.70           # Density dry sediment [g cm-3]= [kg L-1] = [10^3kg m-3]; used for K_mMnO2 and K_mFeOH3
   S               <- 0.2            # Salinity for fresh water in psu (ppt); K: 430uS/cm -> 0.208 ppt?
   v               <- 10*1e-3        # Sedimentation rate: advection at top [m y-1]
-  Db              <- 4e-4           # Mixing rate of the sediment; Bioturbation coefficient [m2 y-1]
+  Db              <- 1e-4           # Mixing rate of the sediment; Bioturbation coefficient [m2 y-1]
   # temperature (potentially varying) [°C]
     # load in data
     temp.data <- read.delim2("./imports/temperature.csv")

@@ -18,8 +18,8 @@ grid_setup <- function(){
   grid_collection <- list()
   
   # setup grid
-  #grid <- setup.grid.1D(x.up = 0, L = L, N = N)
-  grid <- setup.grid.1D(x.up = 0, L = 0.3, N = 30, p.dx.1 = 20, dx.1 = 0.0002) # temporary higher resolution at SWI to fit O2 data
+  grid <- setup.grid.1D(x.up = 0, L = L, N = N)
+  #grid <- setup.grid.1D(x.up = 0, L = 0.3, N = 30, p.dx.1 = 20, dx.1 = 0.0002) # temporary higher resolution at SWI to fit O2 data
   
   # attach bioturbation-coefficient
   #Db.grid <- setup.prop.1D(value = Db, grid = grid)

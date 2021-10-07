@@ -38,16 +38,16 @@
 ### Solve the model: Steady state
 print(system.time(
   ss <- steady.1D(y = state,
-                  time = 0.35, # oxic steady state
+                  time = 0.2, # oxic steady state
                   func = Model, 
                   parms = NULL, 
                   names = names_out, 
-                  method = "stodes",
+                  method = "stode", # stodes, when P adsorption is activated
                   #verbose=TRUE,
                   pos = TRUE,
                   nspec = length(names_out) #,rtol = 1e-16,ctol = 1e-16 ,atol = 1e-16
   )))
-
+state <- as.vector(ss$y) # save time on iterative runs with same species
 
 ### extract steady state solution as input for transient model
 source('07_prepare_transient_input.R')
