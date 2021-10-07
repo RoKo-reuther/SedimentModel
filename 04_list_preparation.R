@@ -205,10 +205,16 @@ create_model_lists <- function(){
           # find match: a, b, c in substring should match a, b, c declaration of subspecies in species description (subsp_tag)
           reaction_selection <- temp_substr == species$subsp_tag
         # store determined reactions in "reaction_rates"-string
+        reaction_names <- temp_reaction$reaction_rates$equations[reaction_selection]
         reaction_rates <- ""
-        for (i in seq_along(temp_reaction$reaction_rates$equations[reaction_selection])){
-          rr_temp <- paste("+", names(temp_reaction$reaction_rates$equations[reaction_selection][i]), sep = "")
-          reaction_rates <- paste(reaction_rates, rr_temp)
+        # if there was no reaction determined (e.g. OrgCC) -> reaction rate is 0
+        if (length(reaction_names) == 0){
+          reaction_rates <- "0"
+        } else {
+          for (i in seq_along(reaction_names)){
+            rr_temp <- paste("+", names(reaction_names[i]), sep = "")
+            reaction_rates <- paste(reaction_rates, rr_temp)
+          }
         }
       }
       

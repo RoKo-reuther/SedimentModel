@@ -122,8 +122,7 @@ reactions_collection <- list(
           reaction_rates=list(
             equations=list(
               R1_a="k_alpha * tempcorr_decomp * OrgCA * O2 / (K_mO2 + O2)",
-              R1_b="k_beta * tempcorr_decomp  * OrgCB * O2 / (K_mO2 + O2)",
-              R1_c="0"),
+              R1_b="k_beta * tempcorr_decomp  * OrgCB * O2 / (K_mO2 + O2)"),
             u_unit="mol/V_sf/y"),
           subsp_def=c("OM"),
           activated=TRUE),
@@ -144,8 +143,7 @@ reactions_collection <- list(
           reaction_rates=list(
             equations=list(
               RN_a="k_alpha * tempcorr_decomp * OrgCA  * (NO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              RN_b="k_beta * tempcorr_decomp  * OrgCB  * (NO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              RN_c="0"),
+              RN_b="k_beta * tempcorr_decomp  * OrgCB  * (NO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))"),
             u_unit="mol/V_sf/y"),
           subsp_def=c("OM"),
           activated=TRUE),
@@ -166,8 +164,7 @@ reactions_collection <- list(
           reaction_rates=list(
             equations=list(
               RM_aa="k_alpha * tempcorr_decomp * OrgCA * (MnO2A / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              RM_ba="k_beta * tempcorr_decomp  * OrgCB * (MnO2A / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              RM_cz="0"), # subsp_tag 'z' for MnO2 -> reaction won't be considered for any MnO2 subspecies
+              RM_ba="k_beta * tempcorr_decomp  * OrgCB * (MnO2A / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))"),
             u_unit="mol/V_sf/y"),
           subsp_def=c("OM", "MnO2"),
           activated=TRUE),
@@ -188,8 +185,7 @@ reactions_collection <- list(
            reaction_rates=list(
              equations=list(
                R2_Ox_aa="k_alpha * tempcorr_decomp * OrgCA * (FeOH3A / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-               R2_Ox_ba="k_beta * tempcorr_decomp  * OrgCB * (FeOH3A / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-               R2_Ox_cz="0"), # subsp_tag 'z' for Fe(OH)3A -> reaction won't be considered for any Fe(OH)3 subspecies
+               R2_Ox_ba="k_beta * tempcorr_decomp  * OrgCB * (FeOH3A / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))"),
              u_unit="mol/V_sf/y"),
            subsp_def=c("OM", "Fe(OH)3"),
            activated=TRUE),
@@ -210,8 +206,7 @@ reactions_collection <- list(
           reaction_rates=list(
             equations=list(
               R3_a="k_alpha * tempcorr_decomp * OrgCA * (SO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              R3_b="k_beta * tempcorr_decomp  * OrgCB * (SO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              R3_c="0"),
+              R3_b="k_beta * tempcorr_decomp  * OrgCB * (SO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))"),
             u_unit="mol/V_sf/y"),
           subsp_def=c("OM"),
           activated=TRUE),
@@ -231,8 +226,7 @@ reactions_collection <- list(
           reaction_rates=list(
             equations=list(
               R4_a="k_alpha * tempcorr_decomp * OrgCA * (K_mSO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              R4_b="k_beta * tempcorr_decomp  * OrgCB * (K_mSO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))",
-              R4_c="0"),
+              R4_b="k_beta * tempcorr_decomp  * OrgCB * (K_mSO4 / (K_mSO4 + SO4)) * (K_mFeOH3 / (K_mFeOH3 + FeOH3A)) * (K_mMnO2 / (K_mMnO2 + MnO2A)) * (K_mNO3 / (K_mNO3 + NO3)) * (K_mO2 / (K_mO2 + O2))"),
             u_unit="mol/V_sf/y"),
           subsp_def=c("OM"),
           activated=TRUE),
