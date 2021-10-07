@@ -1,5 +1,5 @@
 
-# two data-frames ("nodes" and "links") are created, based on the "occuring_reactions"-list
+# two data-frames ("nodes" and "links") are created, based on the "occurring_reactions"-list
 # these data-frames are needed to draw a diagram using the visNetwork-package
 
 # create empty data frames
@@ -7,8 +7,8 @@ nodes <- data.frame(id=c(), label=c(), title=c(), group=c())
 links <- data.frame(from=c(), to=c())
 
 # fill data frames
-# go through occuring_reactions
-for (reaction in occuring_reactions){
+# go through occurring_reactions
+for (reaction in occurring_reactions){
 # create and attach "reaction node"
   new_node <- data.frame(id=c(reaction$abbreviation), label=c(""), title=c(reaction$name), group=c("reaction"))
   nodes <- rbind(nodes, new_node)
@@ -50,7 +50,7 @@ model_diagram <- visNetwork(nodes, links)
 model_diagram <- visOptions(model_diagram,
                            width = 1920, height = 1080,
                            highlightNearest = list(enabled = TRUE, degree = list(from = 2, to = 2), algorithm = "hierarchical"),
-                           selectedBy = list(variable = "title", highlight = TRUE, sort = FALSE)
+                           selectedBy = list(variable = "title", selected = "OM", highlight = TRUE, sort = FALSE)
                            )
 
 # set diagram layout (igraph layout)
