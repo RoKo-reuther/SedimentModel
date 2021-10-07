@@ -3,6 +3,8 @@
 #                                             MODEL PREPERATION                                           #
 ###########################################################################################################
 
+library(stringr)
+
 # create lists that store rate-equation-functions and rate-constants based on "occurring_reactions"-list, conversion factors, "total concentration change terms" RX
 create_model_lists <- function(){
   # source files
@@ -32,7 +34,7 @@ create_model_lists <- function(){
     if (length(species$subspecies) > 0) {
       # ... create new species-entries for each subspecies; copy information from "mother-species" for further processing.
       for (i in seq_along(species$subspecies)){
-        species_operational[[species$subspecies[[i]]]] <<- c(species["abbreviation"], if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]}, species["involved_in"], species["phase"], name = species$subspecies[[i]], number=i) 
+        species_operational[[species$subspecies[[i]]]] <<- c(species["abbreviation"], if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]}, species["involved_in"], species["phase"], name = species$subspecies[[i]], subsp_tag = names(species$subspecies)[i]) 
         #"number" stored to match the right reaction rate later on
         # "abbreviation" stored to get information out of "occurring_reactions"-list (reference to "mother-species")
       }
@@ -114,13 +116,13 @@ create_model_lists <- function(){
   }
   
   
-  # 5.1.1) get "shared_reaction_terms" from "chemical_base_config; store in "rate_constants"-list
+  # 5.1.1) get "shared_reaction_constants" from "chemical_base_config; store in "rate_constants"-list
   for (i in seq_along(shared_reaction_constants)){
     rate_constants[names(shared_reaction_constants[i])] <<- shared_reaction_constants[[i]]$value
   }
   
   
-  # 5.1.2 & 5.2)
+  # 5.1.2,  5.2 & 5.3)
   # go through "occurring_reactions"-list
   for (element in occurring_reactions){
     
@@ -131,20 +133,21 @@ create_model_lists <- function(){
     
     # 5.2) extract rate equations for every reaction ...
     temp_list <- c(element$reaction_rates$equations)
-    # ... and add them to "rate-quations"-list
+    # ... and add them to "rate-equations"-list
     rate_equations <<- c(rate_equations, temp_list)
+    
+    # 5.3) get "shared_regulation terms, that are actually needed
+    for (termname in element$shared_terms){
+      shared_reg_terms[termname] <<- shared_regulation_terms[[termname]]
+    }
   }
-  
-  
-  # 5.3) get "shared_regulation terms from "chemical_base_config"
-  shared_reg_terms <<- shared_regulation_terms
   
     
   # 5.4) define reaction terms: build RX-term for each species
   
   # store conversion factors as text in "reaction_terms"-list 
-  reaction_terms[["q"]] <<- grid_collection$svf.grid$mid / grid_collection$por.grid$mid # from 1/svf to 1/por; solid to aqeaous
-  reaction_terms[["r"]] <<- grid_collection$por.grid$mid / grid_collection$svf.grid$mid # from 1/por to 1/svf; aqeous to solid
+  reaction_terms[["q"]] <<- grid_collection$svf.grid$mid / grid_collection$por.grid$mid # from 1/svf to 1/por; solid to aqueous
+  reaction_terms[["r"]] <<- grid_collection$por.grid$mid / grid_collection$svf.grid$mid # from 1/por to 1/svf; aqueous to solid
   
   for (species in species_operational){
     
@@ -155,43 +158,58 @@ create_model_lists <- function(){
     
     # go through reactions the species is involved in
     for (element in species$involved_in){
+      temp_reaction <- occurring_reactions[[element]]
       # check some properties and store them in helping variables to build RX-term later
       
       # is species educt in this reaction? -> True: minus-sign, False: plus-sign
-      educt <- exists(species$abbreviation, occurring_reactions[[element]]$involved_species$educts)
+      educt <- exists(species$abbreviation, temp_reaction$involved_species$educts)
       
       # get stoichiometry-factor out of "occurring_reactions"-list
       # differenciate between educts and products because of the "path"
       if (educt){
-        stoic <- occurring_reactions[[element]]$involved_species$educts[[species$abbreviation]]$stoic
+        stoic <- temp_reaction$involved_species$educts[[species$abbreviation]]$stoic
       }
       else {
-        stoic <- occurring_reactions[[element]]$involved_species$products[[species$abbreviation]]$stoic
+        stoic <- temp_reaction$involved_species$products[[species$abbreviation]]$stoic
       }
       
       # check if/which conversion factor is needed
       # if species is solute and unit of reaction rate is "mol/V_sf/y" -> q; if species is solid and unit of reaction rate is "mol/V_pw/y" -> r
-      if ((species$phase=="solute")&(occurring_reactions[[element]]$reaction_rates$u_unit=="mol/V_sf/y")) conversion <- "q"
-      else if ((species$phase=="solid")&(occurring_reactions[[element]]$reaction_rates$u_unit=="mol/V_pw/y")) conversion <- "r"
+      if ((species$phase=="solute")&(temp_reaction$reaction_rates$u_unit=="mol/V_sf/y")) conversion <- "q"
+      else if ((species$phase=="solid")&(temp_reaction$reaction_rates$u_unit=="mol/V_pw/y")) conversion <- "r"
       else conversion <- 1
       
       # get reaction rate name(s)
       # does reaction occur with two different rates, depending on this species? (e.g. different degrees of degradability of organic matter)
-      if ((length(occurring_reactions[[element]]$varying_rates) == 0) || (occurring_reactions[[element]]$varying_rates != species$abbreviation)){
+      if ((length(temp_reaction$subsp_def) == 0) || (! species$abbreviation %in% temp_reaction$subsp_def)){
         # yes: either there is no differentiation of reaction rates for this reaction or it is not differentiated "for this species"
         # get reaction rate name(s) (more rates for different degrees of degradability, but not created for this species)
         # and store them in "reaction_rates"-string, connected by plus-sign, in form of a function call
         reaction_rates <- ""
-        for (i in seq_along(occurring_reactions[[element]]$reaction_rates$equations)){
-          rr_temp <- paste("+", names(occurring_reactions[[element]]$reaction_rates$equations[i]), sep = "")
+        for (i in seq_along(temp_reaction$reaction_rates$equations)){
+          rr_temp <- paste("+", names(temp_reaction$reaction_rates$equations[i]), sep = "")
           reaction_rates <- paste(reaction_rates, rr_temp)
         }
       }
-      else if (occurring_reactions[[element]]$varying_rates == species$abbreviation){
+      else if (species$abbreviation %in% temp_reaction$subsp_def){
         # yes: there are different reaction rate equations stored in the reaction description; the different rates were distinguished for the current species, among others
-        # get reaction rate name (the one that fits the current subspecies; this is estimated by the "number" element, stored for "subspecies" in the species_operational"-list)...
-        # ...and store it in "reaction_rate"-string in form of a function call
-        reaction_rates <- names(occurring_reactions[[element]]$reaction_rates$equations[species$number])
+        # get reaction rate names (the one that fits the current subspecies; the selection is based on the naming of the subspecies (a, b, c,...) in the species description and the reaction rate name
+          # get length of "subsp_def"-vector
+          vr_length <- length(temp_reaction$subsp_def)
+          # get species position in "subsp_def"-vector: indicates position in reaction rate name to match rates
+          position <- which(temp_reaction$subsp_def == species$abbreviation)
+          # get substring indicating the involved subspecies in general
+          temp_substr <- substr(names(temp_reaction$reaction_rates$equations), (str_length(names(temp_reaction$reaction_rates$equations))-vr_length+1), str_length(names(temp_reaction$reaction_rates$equations)))
+          # get substring for species of interest
+          temp_substr <- substr(temp_substr, position, position)
+          # find match: a, b, c in substring should match a, b, c declaration of subspecies in species description (subsp_tag)
+          reaction_selection <- temp_substr == species$subsp_tag
+        # store determined reactions in "reaction_rates"-string
+        reaction_rates <- ""
+        for (i in seq_along(temp_reaction$reaction_rates$equations[reaction_selection])){
+          rr_temp <- paste("+", names(temp_reaction$reaction_rates$equations[reaction_selection][i]), sep = "")
+          reaction_rates <- paste(reaction_rates, rr_temp)
+        }
       }
       
       # create summand for this reaction ...

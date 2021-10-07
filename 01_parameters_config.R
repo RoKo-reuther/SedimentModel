@@ -4,7 +4,7 @@
 ###########################################################################################################
 
 # Grid domain
-  L <- 0.2    # depth of sediment domain [m]
+  L <- 0.25    # depth of sediment domain [m]
   N <- 30   # number of grid layers
 
 # Environmental parameters
