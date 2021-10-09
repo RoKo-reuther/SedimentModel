@@ -21,11 +21,14 @@
   
   # select reactions by name:
   chemical_base_main(specify=TRUE, list("E1", "E2", "E3", "E4a", "E4b", "E5", "E6"))
+  
+  # diagram
     source("023_chemical_base_draw_diagram.R")
       # export to html-file: requires "pandoc"
       visSave(model_diagram, file=paste(wd_path, "/exports/interactive_diagram/model.html", sep=""), selfcontained=TRUE, background="white")
       # view in RStudio
       model_diagram
+     
   ## attach parameters to grid
     source("03_grid_setup.R")
   ## create processing lists
