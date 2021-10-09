@@ -10,7 +10,12 @@ links <- data.frame(from=c(), to=c())
 # go through occurring_reactions
 for (reaction in occurring_reactions){
 # create and attach "reaction node"
-  new_node <- data.frame(id=c(reaction$abbreviation), label=c(""), title=c(reaction$name), group=c("reaction"))
+  # get rate expressions
+  rate_expr <- ""
+  for (i in seq_along(reaction$reaction_rates$equations)){
+    rate_expr <- paste(rate_expr, paste("<p>", names(reaction$reaction_rates$equations)[i], "=", reaction$reaction_rates$equations[i]), "</p>")
+  }
+  new_node <- data.frame(id=c(reaction$abbreviation), label=c(""), title=c(paste(reaction$name, rate_expr)), group=c("reaction"))
   nodes <- rbind(nodes, new_node)
   
 # create and attach nodes for species and links between species- and reaction-nodes
