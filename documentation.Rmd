@@ -1,0 +1,24 @@
+---
+title: "test"
+author: "Robert Kotschenreuther"
+date: "23 10 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Read an external script:
+
+```{r, include=FALSE, cache=FALSE}
+knitr::read_chunk('test.R')
+```
+
+Now we can use the code, e.g.,
+
+```{r, test-a, echo=TRUE, eval=FALSE}
+```
+more explanations
+```{r, test-b, echo=TRUE, eval=FALSE}
+```

@@ -1,0 +1,383 @@
+---
+title: "Model Walkthrough"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r get_code, include=FALSE, cache=FALSE}
+# read in whole model code as chunks, that can be called by name
+knitr::read_chunk('pure_code.R')
+```
+
+```{r, libraries, echo=FALSE, message=FALSE, warning=FALSE}
+```
+
+```{r, preparations, echo=FALSE}
+```
+
+```{r initial_setup, echo=FALSE, include=FALSE}
+<<libraries>>
+<<preparations>>
+reac_vals <- reactiveValues()
+<<set_configs>>
+initial_configs <- configs
+# create temporary configuration files as copy of standard files
+file.copy(from = configs$parameters_config, to = "parameters_config_temp.R", overwrite = TRUE)
+file.copy(from = configs$chemical_base_config, to = "chemical_base_config_temp.R", overwrite = TRUE)
+file.copy(from = configs$boundary_conditions_config, to = "boundary_conditions_config_temp.R", overwrite = TRUE)
+
+# set links to temporary configuration files
+configs <- list(
+  parameters_config = "parameters_config_temp.R",
+  chemical_base_config = "chemical_base_config_temp.R",
+  boundary_conditions_config = "boundary_conditions_config_temp.R"
+)
+# config files: use numbers to indicate changing, because filename always stays the same
+reac_vals$config_parms <- 1
+reac_vals$config_chem  <- 1
+reac_vals$config_bound <- 1
+<<source_parameters>>
+parameters_bak <- parameters
+reac_vals$parameters <- parameters
+<<chemical_lists>>
+reac_vals$occurring_reactions <- occurring_reactions
+reac_vals$occurring_species <- occurring_species
+reac_vals$reactions_collection <- reactions_collection
+<<grid_setup>>
+reac_vals$grid_collection <- grid_collection
+<<boundary_conditions>>
+reac_vals$boundary_conditions <- boundary_conditions
+<<list_preparation>>
+<<model_function>>
+<<plots>>
+```
+
+```{r dynamic_behavior, echo=FALSE}
+# observe parameters config
+observeEvent(reac_vals$config_parms, {
+  <<source_parameters>>
+  parameters <<- parameters
+  parameters_bak <<- parameters
+  reac_vals$parameters <- parameters
+  })
+
+# observe boundaries config
+observeEvent(reac_vals$config_bound, {
+  boundary_conditions <<- handlers$get_boundaries()
+  reac_vals$boundary_conditions <- boundary_conditions
+  })
+
+# observe parameters
+observeEvent(reac_vals$parameters, {
+  update_parms_display()
+  grid_collection <<- handlers$grid_setup()
+  reac_vals$grid_collection <- grid_collection
+  })
+
+# observe chemical config
+observeEvent(reac_vals$config_chem, {
+  <<chemical_lists>>
+  occurring_reactions <<- occurring_reactions
+  occurring_species <<- occurring_species
+  reactions_collection <<- reactions_collection
+  reac_vals$occurring_reactions <- occurring_reactions
+  reac_vals$occurring_species <- occurring_species
+  reac_vals$reactions_collection <- reactions_collection
+  })
+
+# observe occurring_reactions
+observeEvent(reac_vals$occurring_reactions, {
+  model_diagram <<- create_diagram()
+  reac_vals$model_diagram <- model_diagram
+  })
+
+# observe occurring_species
+observeEvent(reac_vals$occurring_species, {
+  grid_collection <<- handlers$grid_setup()
+  reac_vals$grid_collection <- grid_collection
+  })
+```
+
+This one-dimensional advective-dispersion-reactive transport model was originally written by Wytze Lenstra, Matthias Egger, Jurjen Rooze, Iana Tsandev and Caroline Slomp and later modified by Reinier Groeneveld. This version contains further modifications regarding the structure, the use of temperature dependent reaction rates and the implementation of phosphate adsorption (Langmuir approach). This document gives explanations on the model handling as well as a interface to run it.
+
+## Setup
+
+### Configuration Files
+There are three configuration files in the project folder.
+`r paste("\n-\t", paste(initial_configs, collapse = "\n-\t"), "\n", sep="")`
+
+As the names imply, these files allow you to adjust all parameters, the chemical setup and the boundary conditions. These files are used by default, if no other configuration files are selected here:
+
+```{r custom_config, echo=FALSE}
+# other configuration files can be selected ...
+fluidPage(
+  fluidRow(
+    # parameters configuration
+    column(4,   fileInput("file_parms", label = NULL, placeholder = "parameters"), offset = 0),
+    # chemical base configuration
+    column(4, fileInput("file_chem", label = NULL, placeholder = "chemical base"),  offset = 0.5),
+    # boundary conditions configuration
+    column(4, fileInput("file_boundary", label = NULL, placeholder = "boundary conditions"), offset = 0.5)
+  )
+)
+
+# ... and will overwrite temporary standard configuration files
+observeEvent(input$file_parms, {
+  file.copy(from = input$file_parms$datapath, to = "./temp/parameters_config_temp.R", overwrite = TRUE) # overwrite config file
+  reac_vals$config_parms <- reac_vals$config_parms +1 # trigger dynamic behavior
+})
+observeEvent(input$file_chem, {
+  file.copy(from = input$file_chem$datapath, to = "./temp/chemical_base_config_temp.R", overwrite = TRUE) # overwrite config file
+  reac_vals$config_chem <- reac_vals$config_chem +1 # trigger dynamic behavior
+})
+observeEvent(input$file_boundary, {
+  file.copy(from = input$file_boundary$datapath, to = "./temp/boundary_conditions_config_temp.R", overwrite = TRUE) # overwrite config file
+  reac_vals$config_bound <- reac_vals$config_bound +1 # trigger dynamic behavior
+})
+```
+
+### Parameters
+
+In the following a selection of the parameters defined in the selected "parameters configuration file" are listed in categories. Press "update parameters" to apply your changes.
+
+```{r parameters, echo=FALSE}
+# interface to change parameters
+fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      actionButton("update_parms", "update parameters", width = "100%"),
+      br(),
+      br(),
+      actionButton("reset_parms", "restore default", width = "100%"),
+      width = 3
+    ),
+    mainPanel(
+      tabsetPanel(
+        tabPanel(title="grid domain",
+          fluidRow(
+            column(5, numericInput("p_L", label = h5("sediment depth (m)"), value = parameters$L, min=0, step=0.05)),
+            column(5, numericInput("p_N", label = h5("number of grid layers"), value = parameters$N, min=0, step=10))
+          )
+         ),
+        tabPanel(title="environmental",
+          fluidRow(
+            column(5, numericInput("p_por.0", label = h5("porosity at SWI (-)"), value = parameters$por.0, min=0, step=0.05)),
+            column(5, numericInput("p_por.inf", label = h5("porosity at infinite depth (-)"), value = parameters$por.inf, min=0, step=0.05))
+          ),
+          fluidRow(
+            column(5, numericInput("p_Db", label = h5("bioturbation coefficient", "(", HTML("<sup>m²</sup>&frasl;<sub>a</sub>"), ")"), value = parameters$Db, min=0, step=0.005)),
+            column(5, numericInput("p_Db_depth", label = h5("middle of Db decreasing zone (m)"), value = parameters$Db_depth, min=0, step=0.01))
+          ),
+          fluidRow(
+            column(5, numericInput("p_v", label = h5("sedimentation rate", "(", HTML("<sup>m</sup>&frasl;<sub>yr</sub>"), ")"), value = parameters$v, min=0, step=0.05)) 
+          )
+        ),
+        tabPanel(title="stoichiometric relationships",
+          fluidRow(
+            column(5, numericInput("p_CtoN", label = h5("C to N ratio in OM"), value = parameters$CtoN, min=0, step=0.05)),
+            column(5, numericInput("p_CtoP", label = h5("C to P ratio in OM"), value = parameters$CtoP, min=0, step=0.05))
+          )
+         )
+      )
+    ),
+    position ="right"
+  )
+)
+
+observeEvent(input$update_parms, {
+  update_parms_list()
+    })
+
+observeEvent(input$reset_parms, {
+  parameters <<- parameters_bak
+  update_parms_display()
+})
+
+update_parms_list <- function(){
+  parameters$L <<- input$p_L
+  parameters$N <<- input$p_N
+  parameters$por.0 <<- input$p_por.0
+  parameters$por.inf <<- input$p_por.inf
+  parameters$Db <<- input$p_Db
+  parameters$Db_depth <<- input$p_Db_depth
+  parameters$v <<- input$p_v
+  parameters$CtoN <<- input$p_CtoN
+  parameters$CtoP <<- input$p_CtoP
+  reac_vals$parameters <- parameters
+}
+
+update_parms_display <- function(){
+  updateNumericInput(inputId="p_L", value = parameters$L)
+  updateNumericInput(inputId="p_N", value = parameters$N)
+  updateNumericInput(inputId="p_por.0", value = parameters$por.0)
+  updateNumericInput(inputId="p_por.inf", value = parameters$por.inf)
+  updateNumericInput(inputId="p_Db", value = parameters$Db)
+  updateNumericInput(inputId="p_Db_depth", value = parameters$Db_depth)
+  updateNumericInput(inputId="p_v", value = parameters$v)
+  updateNumericInput(inputId="p_CtoN", value = parameters$CtoN)
+  updateNumericInput(inputId="p_CtoP", value = parameters$CtoP) 
+}
+```
+
+```{r grid_plots, echo=FALSE}
+fluidRow(
+            column(6, renderPlot({plot(reac_vals$grid_collection$por.grid, grid = reac_vals$grid_collection$grid, xyswap = TRUE, type="l", xlab = "porosity (-)", ylab = "depth (m)")})),
+            column(6, renderPlot({plot(reac_vals$grid_collection$Db.grid, grid = reac_vals$grid_collection$grid, xyswap = TRUE, type="l", xlab = "bioturbation coefficient (m²/a)", ylab = "depth (m)")}))
+          )
+```
+
+### Reactions
+#### complete list of implemented reactions
+
+```{r reactions_table, echo=FALSE}
+DT::renderDataTable({
+  reaction_table_temp <- data.frame()
+  for (i in reac_vals$reactions_collection){
+
+    if (exists("subsp_def", i)){
+      subsp = toString(i$subsp_def)
+    } else {
+      subsp = "/"
+    }
+
+    reaction_table_temp <- rbind(reaction_table_temp, data.frame(
+      abbreviation=i$abbreviation,
+      name=i$name,
+      rate_name=names(i$reaction_rates$equations),
+      rate_equation=as.character(i$reaction_rates$equations),
+      differing_for=subsp
+      ))
+  }
+  reaction_table_temp
+}, rownames=FALSE, colnames=c("abbr.", "reaction name", "rate name", "rate equation", "differing for"))
+```
+
+#### reactions selection & conceptual diagram
+
+```{r reaction_handling, echo=FALSE}
+## checkboxGroup
+  # list of reactions without "duplicates" for checkboxGroup -> only main reactions can be selected
+  reaction_table_selec <- reactive({
+    temp <- data.frame()
+    for (i in reac_vals$reactions_collection){
+      temp <- rbind(temp, data.frame(abbreviation=i$abbreviation, name=i$name, status=i$activated))
+    }
+    temp})
+
+  # activated reactions
+  activated_reacs <- reactive(as.vector(reaction_table_selec()[reaction_table_selec()[, "status"]==TRUE, "abbreviation"]))
+
+  # dynamic checkbox object
+  reaction_checkbox <- reactive(checkboxGroupInput("reactions_selection", label = NULL,
+                     choiceNames = as.list(reaction_table_selec())$name,
+                     choiceValues = as.list(reaction_table_selec())$abbreviation,
+                     selected = activated_reacs(),
+                     width = "90%", inline=FALSE))
+
+## interactive diagram
+  # function to create diagram
+  create_diagram <- function(){
+    <<interactive_diagram>>
+    model_diagram <- visOptions(model_diagram,
+                             width = "100%", height = 850,
+                             highlightNearest = list(enabled = TRUE, degree = list(from = 2, to = 2), algorithm = "hierarchical"),
+                             selectedBy = list(variable = "name", selected = "OM", highlight = TRUE, sort = FALSE), clickToUse = FALSE)
+    return(model_diagram)
+
+  }
+  # create diagram
+  model_diagram <- create_diagram()
+  reac_vals$model_diagram <- model_diagram
+
+## interface: reaction checkboxes, update-reactions button and diagram
+fluidRow(
+column(9, wellPanel(style = "overflow-y:scroll; max-height: 200px",
+            renderUI(reaction_checkbox()))),
+column(3, br(), br(), br(), br(), actionButton("select_reactions", "update reactions", width="100%"))
+)
+wellPanel(renderVisNetwork({reac_vals$model_diagram}), style="height: 900px; padding: 0px; background-color: white; border-color: white")
+
+## "update reactions" button
+observeEvent(input$select_reactions, {
+    # update "occurring_reactions and "occurring_species"-lists; selected reactions are input
+    # if no reaction is selected -> error message
+    chemical_lists <- handlers$chemical_base_main(specify=TRUE, as.list({input$reactions_selection}))
+    occurring_reactions <<- chemical_lists$oc_reactions
+    occurring_species <<- chemical_lists$oc_species
+    reac_vals$occurring_reactions <- occurring_reactions
+    reac_vals$occurring_species <- occurring_species
+  })
+```
+
+### run model
+```{r steady_state, echo=FALSE}
+actionButton("steady_state", "solve steady state")
+
+observeEvent(input$steady_state, {
+ withProgress(message = 'Solving model ...', min=0, max=0, {
+    model_lists <<- handlers$create_model_lists()
+    reac_vals$model_lists <- model_lists
+    zz <- textConnection("ss_prints", "w")
+    sink(zz)
+    sink(zz, type="message")
+    <<steady_state_solving>>
+    sink(type="message")
+    sink()
+    close(zz)
+    if (length(ss_prints) == 0) {
+      reac_vals$ss <- ss
+      reac_vals$show_ss_plot <- 1
+    } else {
+      reac_vals$ss_prints <- ss_prints
+      reac_vals$show_ss_plot <- 2
+    }
+ })
+})
+
+# show / hide model function content panel
+reac_vals$show_model_f_cont <- FALSE # default: hide
+observeEvent(input$model_func_content, {
+  reac_vals$show_model_f_cont <- !reac_vals$show_model_f_cont
+})
+
+# concentration profile plots / error messages
+reac_vals$show_ss_plot <- 0
+ss_conc_selection <- reactive(stringr::str_split(input$ss_plot_collective, ", ", simplify = TRUE))
+ss_concentration_profiles_selec <- reactive(handlers$concentration_profiles_ss(ss_data=reac_vals$ss, draw_mode = "collective", species = ss_conc_selection()))
+ss_concentration_profiles <- reactive(handlers$concentration_profiles_ss(ss_data=reac_vals$ss))
+
+renderUI(
+if (reac_vals$show_ss_plot == 1) {
+  fluidPage(
+  textInput("ss_plot_collective", label="Enter species names to be plotted together", value = "OrgCA, OrgCB, OrgCC", width = "100%"),
+  renderPlot(ss_concentration_profiles_selec() + theme(legend.text = element_text(size = 13), legend.key.size = unit(1, "cm"), legend.title = element_text(size = 16))),
+  br(),
+  renderPlot(ss_concentration_profiles(), height = function() {225*(length(attributes(reac_vals$ss$y)$dimnames[[2]])/4)}),
+  br(),
+  actionButton("model_func_content", "show / hide model function content"),
+  renderUI(
+    if (reac_vals$show_model_f_cont == TRUE) {
+      fluidPage(
+          renderText("temporary content: this is the code executed inside the model function"),
+          renderPrint(for (i in reac_vals$model_lists$expressions$final_expression) print(i)) 
+      )
+     }
+    )
+  )
+} else if (reac_vals$show_ss_plot == 2) {
+  renderPrint(cat(reac_vals$ss_prints, sep = "\n"))
+})
+```
+
+
+```{r on_exit, include=FALSE}
+onStop(function () {
+  file.remove("parameters_config_temp.R")
+  file.remove("chemical_base_config_temp.R")
+  file.remove("boundary_conditions_config_temp.R")
+  })
+```
