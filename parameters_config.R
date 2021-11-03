@@ -14,7 +14,7 @@ por_shape     <- 0.1225706        # to shape porosity profile (used as x.att in 
 por.0         <- 0.95             # porosity at surface [-] =soil moisture content (at full saturation)
 por.inf       <- 0.90             # porosity at infinite depth [-]
 
-P               <- 0.30           # True pressure [bar]
+P               <- 1.30           # True pressure [bar]
 dens_dw         <- 2.70           # Density dry sediment [g cm-3]= [kg L-1] = [10^3kg m-3]; used for K_mMnO2 and K_mFeOH3
 S               <- 0.2            # Salinity for fresh water in psu (ppt); K: 430uS/cm -> 0.208 ppt?
 v               <- 10*1e-3        # Sedimentation rate: advection at top [m y-1]
