@@ -98,20 +98,18 @@ draw_depth_profile(OM)
 # concentration profiles
 #*************************************
 # draw concentration profiles for species in species-vector
-concentration_profiles <- function(scenario_mode, species=NULL, draw_mode = "facet_wrap", ss_data=ss, trans_data=trans){
+concentration_profiles_ss <- function(species=NULL, draw_mode = "facet_wrap", ss_data=ss, trans_data=trans){
     # species: vector of species to draw concentration profile
-    # scenario_mode: either ss (steady-state) or trans (transient)
     # draw_mode: either "facet_wrap", "collective"
   
-  ## steady state scenario
   # create complete concentrations data-frame 
   df.ss_cs <- data.frame(
-    depth = rep(-1*grid_collection$grid$x.mid, length(species_operational)),
+    depth = rep(grid_collection$grid$x.mid, length(model_lists$species_operational)),
     concentration = c(ss_data$y),
     specie = rep(attributes(ss_data$y)$dimnames[[2]], each=parameters$N))
   
   # correct for solid volume fraction/porosity -> get all conentrations in mol/m³ total volume
-  for (element in species_operational){
+  for (element in model_lists$species_operational){
     if (element$phase == "solute"){
       df.ss_cs[df.ss_cs$specie == element$name, "concentration"] <- df.ss_cs[df.ss_cs$specie == element$name, "concentration"] * grid_collection$por.grid$mid
     }
@@ -131,7 +129,8 @@ concentration_profiles <- function(scenario_mode, species=NULL, draw_mode = "fac
   myplot <- ggplot(data = df.plot) +
     geom_path(mapping = aes(concentration, depth, color=specie)) +
     ggtitle("concentration profiles") +
-    labs(x="concentration (mol/m³)", y = "depth (m)")
+    labs(x="concentration (mol/m³)", y = "depth (m)") + 
+    scale_y_continuous(trans = "reverse")
   
   if (draw_mode == "facet_wrap"){
     myplot <- myplot +
@@ -145,6 +144,7 @@ concentration_profiles <- function(scenario_mode, species=NULL, draw_mode = "fac
 }
 concentration_profiles(scenario_mode = "ss", c("PO4", "adsorbed_P", "FeOH3A"), draw_mode = "collective")
 concentration_profiles(scenario_mode = "ss", draw_mode = "facet_wrap")
+concentration_profiles(scenario_mode = "ss", draw_mode = "collective")
 
 
 #*************************************

@@ -10,13 +10,14 @@
 
 ### TODO: set links to config files
   configs <- list(
-    parameters_config = "01_parameters_config.R",
+    parameters_config = "011_parameters_config.R",
     chemical_base_config = "021_chemical_base_config.R",
     boundary_conditions_config = "051_boundary_conditions_config.R" 
   )
   
 ### set up model
   ## set up the chemical base: occurring species and reactions, create a diagram and have a look at it
+    source("012_parameters_func.R")
     source("022_chemical_base_func.R")
   
   # select reactions by name:
