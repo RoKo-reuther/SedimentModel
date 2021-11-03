@@ -20,27 +20,27 @@
 # "dummy_species"=list(abbreviation="d_s", name="dummy species", {subspecies=list("subsp1", "subsp2"), phase="solid / solute", activated=TRUE)
 
 species_collection <- list(
-  list(abbreviation="OM", name="organic matter", subspecies=list(a="OrgCA", b="OrgCB", c="OrgCC"), phase="solid", activated=TRUE),
-  list(abbreviation="O2", name="oxygen", abbr_diffcoeff="O2", phase="solute", activated=TRUE),
-  list(abbreviation="NH4", name="ammonium", abbr_diffcoeff="NH4", phase="solute", activated=TRUE),
-  list(abbreviation="PO4", name="phosphate (pool)", abbr_diffcoeff="PO4", phase="solute", activated=TRUE),
-  list(abbreviation="NO3", name="nitrate", abbr_diffcoeff="NO3", phase="solute", activated=TRUE),
-  list(abbreviation="N2", name="nitrogen", abbr_diffcoeff="N2", phase="solute", activated=TRUE),
-  list(abbreviation="MnO2", name="manganese di-oxide", subspecies=list(a="MnO2A"), phase="solid", activated=TRUE),
-  list(abbreviation="Mn_2", name="manganese", abbr_diffcoeff="Mn", phase="solute", activated=TRUE),
-  list(abbreviation="MnCO3", name="manganese carbonate", phase="solid", activated=TRUE),
-  list(abbreviation="Fe(OH)3", name="iron hydroxide", subspecies=list(a="FeOH3A"), phase="solid", activated=TRUE),
-  list(abbreviation="Fe_2", name="iron", abbr_diffcoeff="Fe", phase="solute", activated=TRUE),
-  list(abbreviation="FeCO3", name="iron carbonate (siderite)", phase="solid", activated=TRUE),
-  list(abbreviation="VivP", name="ferrous phosphate (vivianite)", phase="solid", activated=TRUE),
-  list(abbreviation="FeS", name="iron mono-sulphide", phase="solid", activated=TRUE),
-  list(abbreviation="FeS2", name="iron di-sulphide (pyrite)", phase="solid", activated=TRUE),
-  list(abbreviation="S0", name="elemental sulphur", phase="solid", activated=TRUE),
-  list(abbreviation="SO4", name="sulphate", abbr_diffcoeff="SO4", phase="solute", activated=TRUE),
-  list(abbreviation="H2S", name="hydrogen sulphate (pool)", abbr_diffcoeff="H2S", phase="solute", activated=TRUE),
-  list(abbreviation="CH4", name="methane", abbr_diffcoeff="CH4", phase="solute", activated=TRUE),
-  list(abbreviation="DIC", name="dissolved inorganic carbon", abbr_diffcoeff="HCO3", phase="solute", activated=TRUE),
-  list(abbreviation="adsorbed_P", name="iron adsorbed phosphorous", phase="solid", activated=TRUE) # has to be listed after adsorbens!
+  list(abbreviation="OM", name="organic matter", subspecies=list(a="OrgCA", b="OrgCB", c="OrgCC"), phase="solid"),
+  list(abbreviation="O2", name="oxygen", abbr_diffcoeff="O2", phase="solute"),
+  list(abbreviation="NH4", name="ammonium", abbr_diffcoeff="NH4", phase="solute"),
+  list(abbreviation="PO4", name="phosphate (pool)", abbr_diffcoeff="PO4", phase="solute"),
+  list(abbreviation="NO3", name="nitrate", abbr_diffcoeff="NO3", phase="solute"),
+  list(abbreviation="N2", name="nitrogen", abbr_diffcoeff="N2", phase="solute"),
+  list(abbreviation="MnO2", name="manganese di-oxide", subspecies=list(a="MnO2A"), phase="solid"),
+  list(abbreviation="Mn_2", name="manganese", abbr_diffcoeff="Mn", phase="solute"),
+  list(abbreviation="MnCO3", name="manganese carbonate", phase="solid"),
+  list(abbreviation="Fe(OH)3", name="iron hydroxide", subspecies=list(a="FeOH3A"), phase="solid"),
+  list(abbreviation="Fe_2", name="iron", abbr_diffcoeff="Fe", phase="solute"),
+  list(abbreviation="FeCO3", name="iron carbonate (siderite)", phase="solid"),
+  list(abbreviation="VivP", name="ferrous phosphate (vivianite)", phase="solid"),
+  list(abbreviation="FeS", name="iron mono-sulphide", phase="solid"),
+  list(abbreviation="FeS2", name="iron di-sulphide (pyrite)", phase="solid"),
+  list(abbreviation="S0", name="elemental sulphur", phase="solid"),
+  list(abbreviation="SO4", name="sulphate", abbr_diffcoeff="SO4", phase="solute"),
+  list(abbreviation="H2S", name="hydrogen sulphate (pool)", abbr_diffcoeff="H2S", phase="solute"),
+  list(abbreviation="CH4", name="methane", abbr_diffcoeff="CH4", phase="solute"),
+  list(abbreviation="DIC", name="dissolved inorganic carbon", abbr_diffcoeff="HCO3", phase="solute"),
+  list(abbreviation="adsorbed_P", name="iron adsorbed phosphorous", phase="solid") # has to be listed after adsorbens!
 )
 
 
