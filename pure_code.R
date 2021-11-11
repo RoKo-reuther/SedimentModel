@@ -145,7 +145,7 @@ handlers$create_diagram <- function(){
   
   # create empty data frames
   nodes <- data.frame(id=c(), label=c(), title=c(), group=c(), name=c())
-  links <- data.frame(from=c(), to=c())
+  links <- data.frame(from=c(), to=c(), title=c())
   
   # fill data frames
   # go through occurring_reactions
@@ -162,21 +162,21 @@ handlers$create_diagram <- function(){
     # create and attach nodes for species and links between species- and reaction-nodes
     for (species in c(reaction$involved_species$educts, reaction$involved_species$products)){
       # new "species-node", if it does not exist yet
-      species <- species$abbreviation
-      if (any(nodes==species)==FALSE){
-        new_node <- data.frame(id=c(species), label=c(species), title=c(species), group=c("species"), name=c(species))
+      abbr <- species$abbreviation
+      if (any(nodes==abbr)==FALSE){
+        new_node <- data.frame(id=c(abbr), label=c(abbr), title=c(abbr), group=c("species"), name=c(abbr))
         nodes <- rbind(nodes, new_node)
       }
       # new link(s)
       # check if current species is educt
-      if (exists(species, reaction$involved_species$educts)){
+      if (exists(abbr, reaction$involved_species$educts)){
         # create new link: species -> reaction
-        new_link <- data.frame(from=c(species), to=c(reaction$abbreviation))
+        new_link <- data.frame(from=c(abbr), to=c(reaction$abbreviation), title = species$stoic)
         links <- rbind(links, new_link)
       }
       else{
         # create link: reaction -> species
-        new_link <- data.frame(from=c(reaction$abbreviation), to=c(species))
+        new_link <- data.frame(from=c(reaction$abbreviation), to=c(abbr), title = species$stoic)
         links <- rbind(links, new_link)
       }
     }
