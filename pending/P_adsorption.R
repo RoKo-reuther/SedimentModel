@@ -43,5 +43,8 @@ aPe <- function(PO4){
   return(aP_e)
 }
   
-curve(aPe, from=0, to=0.1)
-
+curve(aPe, from=0, to=0.1, xlab = "PO4 (mol/m3)", ylab = "aPe (mol/m3)")
+segments(-0.01, 1.150445, 0.02, 1.150445, col="red")
+segments(0.02, 1.150445, 0.02, -0.1, col = "red")
+segments(-0.01, 0.98, 0.02, 0.98, col="blue")
+segments(0.02, 0.98, 0.02, -0.1, col = "blue")
