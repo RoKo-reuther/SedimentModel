@@ -127,15 +127,15 @@ fluidPage(
 
 # ... and will overwrite temporary standard configuration files
 observeEvent(input$file_parms, {
-  file.copy(from = input$file_parms$datapath, to = "./temp/parameters_config_temp.R", overwrite = TRUE) # overwrite config file
+  file.copy(from = input$file_parms$datapath, to = "parameters_config_temp.R", overwrite = TRUE) # overwrite config file
   reac_vals$config_parms <- reac_vals$config_parms +1 # trigger dynamic behavior
 })
 observeEvent(input$file_chem, {
-  file.copy(from = input$file_chem$datapath, to = "./temp/chemical_base_config_temp.R", overwrite = TRUE) # overwrite config file
+  file.copy(from = input$file_chem$datapath, to = "chemical_base_config_temp.R", overwrite = TRUE) # overwrite config file
   reac_vals$config_chem <- reac_vals$config_chem +1 # trigger dynamic behavior
 })
 observeEvent(input$file_boundary, {
-  file.copy(from = input$file_boundary$datapath, to = "./temp/boundary_conditions_config_temp.R", overwrite = TRUE) # overwrite config file
+  file.copy(from = input$file_boundary$datapath, to = "boundary_conditions_config_temp.R", overwrite = TRUE) # overwrite config file
   reac_vals$config_bound <- reac_vals$config_bound +1 # trigger dynamic behavior
 })
 ```
