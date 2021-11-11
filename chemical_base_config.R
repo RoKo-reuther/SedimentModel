@@ -236,11 +236,9 @@ reactions_collection <- list(
           involved_species=list(
             educts=list(
               "O2"=list(abbreviation="O2", stoic=2),
-              "NH4"=list(abbreviation="NH4", stoic=1),
-              "DIC"=list(abbreviation="DIC", stoic=2)),
+              "NH4"=list(abbreviation="NH4", stoic=1)),
             products=list(
-              "NO3"=list(abbreviation="NO3", stoic=1),
-              "DIC"=list(abbreviation="DIC", stoic=2))),
+              "NO3"=list(abbreviation="NO3", stoic=1))),
           reaction_rate_constants=list(k1=list(value=5e3 , u_unit="m3 mol-1 y-1")),
           shared_terms=list("tempcorr_microbial"),
           reaction_rates=list(equations=list(R19="k1 * tempcorr_microbial * O2 * NH4"), u_unit="mol/V_pw/y"),
