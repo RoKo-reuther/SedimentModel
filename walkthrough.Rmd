@@ -51,7 +51,7 @@ reac_vals$reactions_collection <- reactions_collection
 reac_vals$grid_collection <- grid_collection
 <<boundary_conditions>>
 reac_vals$boundary_conditions <- boundary_conditions
-<<list_preparation>>
+<<model-preparation-func>>
 <<model_function>>
 <<plots>>
 ```
@@ -353,19 +353,16 @@ ss_concentration_profiles <- reactive(handlers$concentration_profiles_ss(ss_data
 renderUI(
 if (reac_vals$show_ss_plot == 1) {
   fluidPage(
-  textInput("ss_plot_collective", label="Enter species names to be plotted together", value = "OrgCA, OrgCB, OrgCC", width = "100%"),
-  renderPlot(ss_concentration_profiles_selec() + theme(legend.text = element_text(size = 13), legend.key.size = unit(1, "cm"), legend.title = element_text(size = 16))),
-  br(),
-  renderPlot(ss_concentration_profiles(), height = function() {225*(length(attributes(reac_vals$ss$y)$dimnames[[2]])/4)}),
-  br(),
-  actionButton("model_func_content", "show / hide model function content"),
-  renderUI(
-    if (reac_vals$show_model_f_cont == TRUE) {
-      fluidPage(
-          renderText("temporary content: this is the code executed inside the model function"),
-          renderPrint(for (i in reac_vals$model_lists$expressions$final_expression) print(i)) 
-      )
-     }
+    textInput("ss_plot_collective", label="Enter species names to be plotted together", value = "OrgCA, OrgCB, OrgCC", width = "100%"),
+    renderPlot(ss_concentration_profiles_selec() + theme(legend.text = element_text(size = 13), legend.key.size = unit(1, "cm"), legend.title = element_text(size = 16))),
+    br(),
+    renderPlot(ss_concentration_profiles(), height = function() {225*(length(attributes(reac_vals$ss$y)$dimnames[[2]])/4)}),
+    br(),
+    actionButton("model_func_content", "show / hide model function content"),
+    renderUI(
+      if (reac_vals$show_model_f_cont == TRUE) {
+        div(renderPrint(cat(reac_vals$model_lists$t_combined_expression)), style= "overflow-y:scroll; max-height: 900px")
+       }
     )
   )
 } else if (reac_vals$show_ss_plot == 2) {

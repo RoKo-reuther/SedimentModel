@@ -314,118 +314,131 @@ handlers$get_boundaries <- function(){
 boundary_conditions <- handlers$get_boundaries()
 
 
-## ---- list_preparation --------------------------------------------------------------------------
+## ---- model-preparation-func --------------------------------------------------------------------
 handlers$create_model_lists <- function(){
   list2env(parameters, envir = rlang::current_env())
   source(file=configs$chemical_base_config, local=TRUE)
   
-  # table of contents / create variables
-  species_operational <- list() # 1) operational species list: "subspecies" will be assigned as own species for the further procedure
-  state <- c() # 2.1) state vector (needed as function argument)
-  names_out <- c() # 2.2) used to label steady-state output (in ode.1D it is only used for plotting)
-  transport_terms <- list() # 4) store tranX-terms as text
-  rate_constants <- list() # 5.1) list of all reaction rate constants in "shared_reaction_constants"-list and occurring_reactions"-list
-  rate_equations <- list() # 5.2) list of all reaction rate equations in "occurring_reactions"-list
-  shared_reg_terms <- list() # 5.3) assign "shared_reaction_terms" from "chemical_base_config" to global environment
-  reaction_terms <- list() # 5.4) calculate change of a species concentration through chemical processes by summing up the reaction rates of reactions this species is involved in
-  total_c_change <- list() # 6) "total concentration change terms": transport term + reaction term for each species (dXdt = tranX$dC + RX)
-  returnlist <- "" # 7) list of content that Model function returns, formulated as text
-  expressions <- list() # 8) list of expressions to be evaluated in the model function
+  # table of contents
+  # 1) operational species list: "subspecies" will be assigned as own species for the further procedure
+  # 2) state vector (needed as function argument)
+  # 3) used to label steady-state output; in ode.1D it is used for plotting
+  # 4) state variable assignment expressions
+  # 5) temperature expression
+  # 6.1) reaction rate constants expressions
+  # 6.2) shared reaction terms expressions
+  # 6.3) reaction rate equation expressions
+  # 6.4) reaction terms expressions
+  # 7.1) diffusion coefficients expressions
+  # 7.2) constant boundary conditions expressions
+  # 7.3) varying boundary conditions expressions
+  # 7.4) transport terms expressions
+  # 8) total change in concentration expressions: transport term + reaction term for each species
+  # 9) return statement
+  # 10) combined expression -> evaluated in model function
+  # 11) combined expression as text -> readable version of expressions evaluated in model function
   
   
   
   # 1) create operational species list
+  species_operational <- list()
   for (species in occurring_species){
     # if there are subspecies ...
     if (length(species$subspecies) > 0) {
       # ... create new species-entries for each subspecies; copy information from "mother-species" for further processing.
       for (i in seq_along(species$subspecies)){
-        species_operational[[species$subspecies[[i]]]] <- c(species["abbreviation"], if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]}, species["involved_in"], species["phase"], name = species$subspecies[[i]], subsp_tag = names(species$subspecies)[i]) 
-        #"number" stored to match the right reaction rate later on
-        # "abbreviation" stored to get information out of "occurring_reactions"-list (reference to "mother-species")
+        species_operational[[species$subspecies[[i]]]] <- c(species["abbreviation"], #to get information out of "occurring_reactions"-list (reference to "mother-species")
+                                                            if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]},
+                                                            species["involved_in"], species["phase"],
+                                                            name = species$subspecies[[i]],
+                                                            subsp_tag = names(species$subspecies)[i]) #to match the right reaction rate later on (subspecies a, b, c ...?)
       }
     }
     else{
       # if there is no subspecies: copy entry partly from "occurring_species"-list to "species_operational"-list
-      species_operational[[species$abbreviation]] <- c(species["abbreviation"], if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]}, species["involved_in"], species["phase"], name = species$abbreviation)
+      species_operational[[species$abbreviation]] <- c(species["abbreviation"],
+                                                       if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]},
+                                                       species["involved_in"], species["phase"],
+                                                       name = species$abbreviation)
     }
   }
   
   
   
-  # 2.1) & 2.2)
+  # 2) & 3)
+  state <- c()
+  names_out <- c()
   for (species in species_operational){
-    # 2.1) initial state-vector (input for steady state solving)
+    # 2) initial state-vector (input for steady state solving)
     state <- c(state, rep(0, length.out = N))
-    # 2.2) names-vector (species have to be in same order as in state vector)
+    # 3) names-vector (species have to be in same order as in state vector)
     names_out <- c(names_out, species$name)
   }
   
   
   
-  # 4) define transport terms
-  for (species in species_operational) {
-    # varaibles name
-    var_name <- paste("tran", species$name, sep = "")
-    # transport terms differ for solids and solutes in general; also there is a special transport term for adsorbed phosphate
-    if (species$name == "adsorbed_P") {
-      # varaibles content:
-      # adsorbed_P is trasportated with FeOH3A, so FeOH3A's concentration and fluxes are used and corrected for the phosphate load
-      # if FeOH3A fluxes in the sediment at the upper boundary it is assumed, that no adsorbed phosphate comes in with it
-      # if FeOH3A fluxes in the sediment at the lower boundary it is assumed, that the incoming FeOH3 has a phosphate load equal the bottom sediment layer
-      # adsorbed phosphate can flux out of the sediment together with FeOH3A on both boundarys with phosphate load at top/bottom layer
-      #var_content <- "tran.1D(C=FeOH3A*phosphate_load_FeOH3A, flux.up=ifelse(tranFeOH3A$flux.up<0, tranFeOH3A$flux.up*phosphate_load_FeOH3A[1], 0), flux.down=ifelse(tranFeOH3A$flux.down>0, tranFeOH3A$flux.down*phosphate_load_FeOH3A, 0), D=grid_collection$Db.grid, v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)"
-      var_content <- "tran.1D(C=FeOH3A*phosphate_load_FeOH3A, flux.up=ifelse(tranFeOH3A$flux.up<0, tranFeOH3A$flux.up*phosphate_load_FeOH3A[1], 0), flux.down=tranFeOH3A$flux.down*phosphate_load_FeOH3A[N], D=grid_collection$Db.grid, v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)"
-      # store tranX-term as text in "transpor_terms"-list ...
-      transport_terms[[var_name]] <- var_content
-    }
-    else if (species$phase == "solute") {
-      # varaibles content
-      var_content <- paste("tran.1D(C=", species$name, ", C.up=", species$name, "_top, D=grid_collection$D", species$name, ".grid, v=grid_collection$u.grid, VF=grid_collection$por.grid, dx=grid_collection$grid)",  sep = "")
-      # store tranX-term as text in "transpor_terms"-list ...
-      transport_terms[[var_name]] <- var_content
-    }
-    else if (species$phase == "solid") {
-      # varaibles content
-      var_content <- paste("tran.1D(C=", species$name, ", flux.up=F_", species$name, ", D=grid_collection$Db.grid", ", v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)",  sep = "")
-      # store tranX-term as text in "transpor_terms"-list ...
-      transport_terms[[var_name]] <- var_content
-    }
+  # 4) state variable assignment expressions
+  state_assign <- list()
+  for (i in seq_along(species_operational)){
+    var_name <- names(species_operational[i])
+    begin <- (i-1)*N+1
+    end <- (i*N)
+    var_content <- paste("pmax(0, state[", begin, ":", end, "])", sep="")
+    state_assign[var_name] <- parse(text=paste(var_name, "<-", var_content))
   }
   
   
-  # 5.1.1) get "shared_reaction_constants" from "chemical_base_config; store in "rate_constants"-list
+  
+  # 5) temperature expression
+  temperature <- expression(TC <- parameters$TC_func(t%%1))
+  
+  
+  
+  # 6.1) - 6.4)
+  rate_constants <- list()
+  shared_reg_terms <- list()
+  rate_equations <- list()
+  reaction_terms <- list()
+  
+  # 6.1.1) get "shared_reaction_constants" from "chemical_base_config; store in "rate_constants"-list
   for (i in seq_along(shared_reaction_constants)){
-    rate_constants[names(shared_reaction_constants[i])] <- shared_reaction_constants[[i]]$value
+    var_name <- names(shared_reaction_constants[i])
+    var_content <- shared_reaction_constants[[i]]$value
+    rate_constants[var_name] <- parse(text=paste(var_name, "<-", var_content))
   }
   
   
-  # 5.1.2,  5.2 & 5.3)
-  # go through "occurring_reactions"-list
+  # 6.1.2 - 6.3)
   for (element in occurring_reactions){
     
-    # 5.1.2) extract reaction rate constants that are only used in one reaction
+    # 6.1.2) extract reaction rate constants that are only used in one reaction
     for (i in seq_along(element$reaction_rate_constants)){
-      rate_constants[names(element$reaction_rate_constants[i])] <- element$reaction_rate_constants[[i]]$value
+      var_name <- names(element$reaction_rate_constants[i])
+      var_content <- element$reaction_rate_constants[[i]]$value
+      rate_constants[var_name] <- parse(text=paste(var_name, "<-", var_content))
     }
     
-    # 5.2) extract rate equations for every reaction ...
-    temp_list <- c(element$reaction_rates$equations)
-    # ... and add them to "rate-equations"-list
-    rate_equations <- c(rate_equations, temp_list)
-    
-    # 5.3) get "shared_regulation terms, that are actually needed
+    # 6.2) get "shared_regulation terms, that are actually needed
     for (termname in element$shared_terms){
-      shared_reg_terms[termname] <- shared_regulation_terms[[termname]]
+      shared_reg_terms[termname] <- parse(text=paste(termname, "<-", shared_regulation_terms[[termname]]))
+    }
+    
+    # 6.3) extract rate equations for every reaction ...
+    for (i in seq_along(element$reaction_rates$equations)) {
+      var_name <- names(element$reaction_rates$equations[i])
+      var_content <- element$reaction_rates$equations[i]
+      rate_equations[var_name] <- parse(text=paste(var_name, "<-", var_content))
     }
   }
   
   
-  # 5.4) define reaction terms: build RX-term for each species ("summed production rate")
+  # 6.4) define reaction terms: build RX-term for each species ("summed production/consumption rate")
   
-  # store conversion factors as text in "reaction_terms"-list 
-  reaction_terms[["q"]] <- grid_collection$svf.grid$mid / grid_collection$por.grid$mid # from 1/svf to 1/por; solid to aqueous
-  reaction_terms[["r"]] <- grid_collection$por.grid$mid / grid_collection$svf.grid$mid # from 1/por to 1/svf; aqueous to solid
+  # store conversion factors in "reaction_terms"-list
+  q <- paste("c(", toString(grid_collection$svf.grid$mid / grid_collection$por.grid$mid), ")") # from 1/svf to 1/por; solid to aqueous
+  r <- paste("c(", toString(grid_collection$por.grid$mid / grid_collection$svf.grid$mid), ")") # from 1/por to 1/svf; aqueous to solid
+  reaction_terms["q"] <- parse(text=paste("q <-", q)) 
+  reaction_terms["r"] <- parse(text=paste("r <-", r)) 
   
   for (species in species_operational){
     
@@ -502,28 +515,77 @@ handlers$create_model_lists <- function(){
       var_content <- paste(var_content, content_part, sep="")
     }
     
-    # store RX-terms as text in "reaction_terms"-list
-    reaction_terms[[var_name]] <- var_content
+    # store RX-terms in "reaction_terms"-list
+    reaction_terms[var_name] <- parse(text=paste(var_name, "<-", var_content))
   }
   
   
   
-  # 6) define "total concentration change terms"
+  # 7.1) diffusion coefficients expressions
+  solute_diffcoeffs <- expression(Dmols <- as.list(diffcoeff(S = parameters$S, t = TC, P = parameters$P, species = grid_collection$solutes$names)),
+                                  mapply(FUN=grid_collection$solutes$func, name=grid_collection$solutes$D_names, Dmol.X=Dmols))
+  
+  # 7.2) constant boundary conditions expressions
+  boundaries_constant <- c()
+  for (i in seq_along(boundary_conditions$constant)){
+    boundaries_constant <- c(boundaries_constant, parse(text=paste(names(boundary_conditions$constant)[i], "<-", boundary_conditions$constant[i], ";")))
+  }
+  
+  # 7.3) varying boundary conditions expressions
+  boundaries_varying <- c()
+  for (i in seq_along(boundary_conditions$varying)){
+    boundaries_varying <- c(boundaries_varying, parse(text=paste(names(boundary_conditions$varying)[i], " <- ", "boundary_conditions$varying$", names(boundary_conditions$varying[i]), "(t%%1)", sep="")))
+  }
+  
+  # 7.4) transport terms expressions
+  transport_terms <- list()
+  for (species in species_operational) {
+    # varaibles name
+    var_name <- paste("tran", species$name, sep = "")
+    # transport terms differ for solids and solutes in general; also there is a special transport term for adsorbed phosphate
+    if (species$name == "adsorbed_P") {
+      # varaibles content:
+      # adsorbed_P is trasportated with FeOH3A, so FeOH3A's concentration and fluxes are used and corrected for the phosphate load
+      # if FeOH3A fluxes in the sediment at the upper boundary it is assumed, that no adsorbed phosphate comes in with it
+      # if FeOH3A fluxes in the sediment at the lower boundary it is assumed, that the incoming FeOH3 has a phosphate load equal the bottom sediment layer
+      # adsorbed phosphate can flux out of the sediment together with FeOH3A on both boundarys with phosphate load at top/bottom layer
+      #var_content <- "tran.1D(C=FeOH3A*phosphate_load_FeOH3A, flux.up=ifelse(tranFeOH3A$flux.up<0, tranFeOH3A$flux.up*phosphate_load_FeOH3A[1], 0), flux.down=ifelse(tranFeOH3A$flux.down>0, tranFeOH3A$flux.down*phosphate_load_FeOH3A, 0), D=grid_collection$Db.grid, v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)"
+      var_content <- "tran.1D(C=FeOH3A*phosphate_load_FeOH3A, flux.up=ifelse(tranFeOH3A$flux.up<0, tranFeOH3A$flux.up*phosphate_load_FeOH3A[1], 0), flux.down=tranFeOH3A$flux.down*phosphate_load_FeOH3A[N], D=grid_collection$Db.grid, v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)"
+      # store tranX-term as expression in "transpor_terms"-list ...
+      transport_terms[var_name] <- var_content
+    }
+    else if (species$phase == "solute") {
+      # varaibles content
+      var_content <- paste("tran.1D(C=", species$name, ", C.up=", species$name, "_top, D=grid_collection$D", species$name, ".grid, v=grid_collection$u.grid, VF=grid_collection$por.grid, dx=grid_collection$grid)",  sep = "")
+      # store tranX-term as text in "transpor_terms"-list ...
+      transport_terms[var_name] <- parse(text=paste(var_name, "<-", var_content))
+    }
+    else if (species$phase == "solid") {
+      # varaibles content
+      var_content <- paste("tran.1D(C=", species$name, ", flux.up=F_", species$name, ", D=grid_collection$Db.grid", ", v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)",  sep = "")
+      # store tranX-term as expression in "transpor_terms"-list ...
+      transport_terms[var_name] <- parse(text=paste(var_name, "<-", var_content))
+    }
+  }
+  
+  
+  
+  # 8) define "total concentration change terms"
+  total_c_change <- list()
   for (species in species_operational){
     # store name for variable
     var_name <- paste("d", species$name, "dt", sep = "")
     # "var_content"-variable
     var_content <- paste("tran", species$name, "$dC + R", species$name, sep = "")
-    # store dXdt-term as text in "total_c_change"-list
-    total_c_change[[var_name]] <- var_content
+    # store dXdt-term in "total_c_change"-list
+    total_c_change[var_name] <- parse(text=paste(var_name, "<-", var_content))
   }
   
   
   
-  # 7) define returnlist
+  # 9) define returnstatement
   # The return value of func should be a list, whose first element is a vector containing the derivatives of y with respect to time,
   # and whose next elements are global values whose steady-state value is also required. (R Documentation, steady.1D)
-  #***returnlist <- "list(c(b=b, c=c), a=a, b=b)"
   
   # function to create ennumeration strings out of a list in the form "name1=name1, name2=name2" 
   list_to_ennumeration <- function(source_list){
@@ -540,13 +602,11 @@ handlers$create_model_lists <- function(){
   }
   
   # create "vector containing the derivatives of y (state) with respect to time", which are the "total concentration change terms" in our case
-  ennumeration <- list_to_ennumeration(total_c_change)
-  result_vec <- paste("c(", ennumeration, ")", sep = "")
-  rm(ennumeration)
+  ennumeration1 <- list_to_ennumeration(total_c_change)
   
   # create list of "next elements whose steady-state value are also required" (reaction rates, shared reaction terms, reaction terms, fluxes at upper and lower boundary)
   # everything except the upper and lower boundary content can be done with "list to ennumeration"-function
-  ennumeration_1 <- list_to_ennumeration(c(rate_equations, shared_reg_terms, reaction_terms))
+  ennumeration2 <- list_to_ennumeration(c(rate_equations, shared_reg_terms, reaction_terms))
   
   # fluxes at upper and lower boundary (FU_X=tranX$flux.up and FD_X=tranX$flux.down for each species X)
   fluxes_ennumeration <- function(){
@@ -562,7 +622,7 @@ handlers$create_model_lists <- function(){
     }
     return(ennumeration)
   }
-  ennumeration_2 <- fluxes_ennumeration()
+  ennumeration3 <- fluxes_ennumeration()
   
   # change in concentration through transport processes (tranX$dC=tranX$dC for each species X)
   dC_ennumeration <- function(){
@@ -578,69 +638,86 @@ handlers$create_model_lists <- function(){
     }
     return(ennumeration)
   }
-  ennumeration_3 <- dC_ennumeration()
+  ennumeration4 <- dC_ennumeration()
   
-  # create returnlist (to be evaluated in model function)
-  returnlist <- paste("list(", result_vec, ", ", ennumeration_1, ", ", ennumeration_2, ", ", ennumeration_3, ")", sep = "")
+  # create returnstatement
+  returnexpr <- parse(text=paste("return(list(c(", ennumeration1, "), ", ennumeration2, ", ", ennumeration3, ", ", ennumeration4, "))", sep=""))
   
   
-  # 8) create evaluatable expressions; wrap them up to one big expression at the end
-  # list to string: for rate constants, shared regulation terms, rate equations, reaction terms, 
-  list_to_string <- function(mylist){
-    result <- c()
-    for (i in seq_along(mylist)){
-      result <- c(result, parse(text=paste(names(mylist)[i], "<-", mylist[i], ";")))
+  
+  # 10) combined expression to be evaluated in model function
+  combined_expression <- c(state_assign,
+                           temperature,
+                           rate_constants,
+                           shared_reg_terms,
+                           rate_equations,
+                           reaction_terms,
+                           solute_diffcoeffs,
+                           boundaries_constant,
+                           boundaries_varying,
+                           transport_terms,
+                           total_c_change,
+                           returnexpr)
+  
+  
+  
+  # 11) combined expression as text -> readable version of expressions evaluated in model function
+  
+  expr2textblock <- function(myexpr, headercomment) {
+    result <- headercomment
+    for (i in myexpr) {
+      result <- paste(result, paste(deparse(i, width.cutoff = 70), collapse = "\n"), sep = "\n")
     }
+    result <- paste(result, "", sep = "\n")
     return(result)
   }
-  # list to string for varying boundary_ conditions
-  boundary_expr <- function(){
-    mylist <- boundary_conditions$varying
-    result <- c()
-    for (i in seq_along(mylist)){
-      result <- c(result, parse(text=paste(names(mylist)[i], " <- ", "boundary_conditions$varying$", names(mylist[i]), "(t%%1)", sep="")))
-    }
-    return(result)
-  }
   
-  expressions <- list()
-  expressions$N <- expression(N <- parameters$N)
-  expressions$state <- expression(  for (i in seq_along(model_lists$species_operational)){assign(names(model_lists$species_operational[i]), state[((i-1)*N+1):(i*N)])})
-  expressions$TC <- expression(TC <- parameters$TC_func(t%%1))
-  expressions$rate_constants <- list_to_string(rate_constants)
-  expressions$shared_reg_terms <- list_to_string(shared_reg_terms)
-  expressions$rate_equations <- list_to_string(rate_equations)
-  expressions$reaction_terms <- list_to_string(reaction_terms)
-  expressions$solute_diffcoeffs <- expression(Dmols <- as.list(diffcoeff(S = parameters$S, t = TC, P = parameters$P, species = grid_collection$solutes$names)),
-                                              mapply(FUN=grid_collection$solutes$func, name=grid_collection$solutes$D_names, Dmol.X=Dmols))
-  expressions$bounds_c <- list_to_string(boundary_conditions$constant)
-  expressions$bounds_v <- boundary_expr()
-  expressions$transport_terms <- list_to_string(transport_terms)
-  expressions$total_c_change <- list_to_string(total_c_change)
-  expressions$return <- parse(text=paste("return(", returnlist, ")", sep=""))
+  # convert expressions to code subsections with header
+  t_state_assign        <- expr2textblock(state_assign, "# state variables")
+  t_temperature         <- expr2textblock(temperature, "# current temperature")
+  t_rate_constants      <- expr2textblock(rate_constants, "# rate constants")
+  t_shared_reg_terms    <- expr2textblock(shared_reg_terms, "# shared regulation terms")
+  t_rate_equations      <- expr2textblock(rate_equations, "# rate equations")
+  t_reaction_terms      <- expr2textblock(reaction_terms, "# reaction terms")
+  t_solute_diffcoeffs   <- expr2textblock(solute_diffcoeffs, "# current diffusion coefficients")
+  t_boundaries_constant <- expr2textblock(boundaries_constant, "# constant boundary conditions")
+  t_boundaries_varying  <- expr2textblock(boundaries_varying, "# time varying boundary conditions")
+  t_transport_terms     <- expr2textblock(transport_terms, "# transport terms")
+  t_total_c_change      <- expr2textblock(total_c_change, "# total change in concentration")
+  t_returnexpr          <- expr2textblock(returnexpr, "# return statement")
   
-  expressions$final_expression <- c(expressions$N,
-                                    expressions$state,
-                                    expressions$TC,
-                                    expressions$rate_constants,
-                                    expressions$shared_reg_terms,
-                                    expressions$rate_equations,
-                                    expressions$reaction_terms,
-                                    expressions$solute_diffcoeffs,
-                                    expressions$bounds_c,
-                                    expressions$bounds_v,
-                                    expressions$transport_terms,
-                                    expressions$total_c_change,
-                                    expressions$return)
+  # bring it all together ...
+  t_combined_expression <- paste(t_state_assign,
+                                 t_temperature,
+                                 t_rate_constants,
+                                 t_shared_reg_terms,
+                                 t_rate_equations,
+                                 t_reaction_terms,
+                                 t_solute_diffcoeffs,
+                                 t_boundaries_constant,
+                                 t_boundaries_varying,
+                                 t_transport_terms,
+                                 t_total_c_change,
+                                 t_returnexpr,
+                                 sep = "\n")
+  
+  
   
   # return created lists (some for informational purpose, some for use)
-  return(list(species_operational=species_operational, state=state, names_out=names_out, transport_terms=transport_terms, rate_constants=rate_constants, rate_equations=rate_equations, shared_reg_terms=shared_reg_terms, reaction_terms=reaction_terms, total_c_change=total_c_change, returnlist=returnlist, expressions=expressions))
+  return(list(species_operational=species_operational, state=state, names_out=names_out, rate_constants=rate_constants, shared_reg_terms=shared_reg_terms,
+              rate_equations=rate_equations, reaction_terms=reaction_terms, boundaries_constant=boundaries_constant, boundaries_varying=boundaries_varying,
+              transport_terms=transport_terms, total_c_change=total_c_change, returnexpr=returnexpr, combined_expression=combined_expression,
+              t_combined_expression=t_combined_expression))
 }
+
+
+## ---- model-preparation-action ------------------------------------------------------------------
+model_lists <- handlers$create_model_lists()
 
 
 ## ---- model_function ----------------------------------------------------------------------------
 Model <- function(t, state, pars) {
-  eval(model_lists$expressions$final_expression)
+  eval(model_lists$combined_expression)
 }
 
 
