@@ -297,7 +297,12 @@ DT::renderDataTable({
 fluidRow(
 column(9, wellPanel(style = "overflow-y:scroll; max-height: 200px",
             renderUI(reaction_checkbox()))),
-column(3, br(), br(), br(), br(), actionButton("select_reactions", "update reactions", width="100%"))
+column(3, br(),
+       actionButton("select_reactions", "update reactions", width="100%"),
+       br(), br(),
+       actionButton("de_sel_reacs", "(de)select all reactions", width ="100%"),
+       br(), br(),
+       actionButton("reset_reacs", "restore default", width = "100%"))
 )
 wellPanel(renderVisNetwork({reac_vals$model_diagram}), style="height: 900px; padding: 0px; background-color: white; border-color: white")
 
@@ -310,6 +315,21 @@ observeEvent(input$select_reactions, {
     occurring_species <<- chemical_lists$oc_species
     reac_vals$occurring_reactions <- occurring_reactions
     reac_vals$occurring_species <- occurring_species
+  })
+
+## "(de)select all reactions" button
+observeEvent(input$de_sel_reacs, {
+    if ((input$de_sel_reacs %%2) != 0){
+      updateCheckboxGroupInput(inputId = "reactions_selection", selected = FALSE)
+    }
+    else {
+      updateCheckboxGroupInput(inputId = "reactions_selection", selected = as.vector(reaction_table_selec()[, "abbreviation"]))
+    }
+  })
+
+## "restore defaults" button
+observeEvent(input$reset_reacs, {
+      updateCheckboxGroupInput(inputId = "reactions_selection", selected = activated_reacs())
   })
 ```
 
@@ -330,42 +350,63 @@ observeEvent(input$steady_state, {
     close(zz)
     if (length(ss_prints) == 0) {
       reac_vals$ss <- ss
-      reac_vals$show_ss_plot <- 1
+      reac_vals$show_ss_plots <- 1
     } else {
       reac_vals$ss_prints <- ss_prints
-      reac_vals$show_ss_plot <- 2
+      reac_vals$show_ss_plots <- 2
     }
  })
 })
 
-# show / hide model function content panel
-reac_vals$show_model_f_cont <- FALSE # default: hide
-observeEvent(input$model_func_content, {
-  reac_vals$show_model_f_cont <- !reac_vals$show_model_f_cont
-})
+# model output plots / error messages
+reac_vals$show_ss_plots <- 0 # 0 -> model not solved yet -> nothing to display
 
-# concentration profile plots / error messages
-reac_vals$show_ss_plot <- 0
-ss_conc_selection <- reactive(stringr::str_split(input$ss_plot_collective, ", ", simplify = TRUE))
-ss_concentration_profiles_selec <- reactive(handlers$concentration_profiles_ss(ss_data=reac_vals$ss, draw_mode = "collective", species = ss_conc_selection()))
-ss_concentration_profiles <- reactive(handlers$concentration_profiles_ss(ss_data=reac_vals$ss))
+ss_conc_selection <- reactive(stringr::str_split(input$ss_plot_collective_cp, ", ", simplify = TRUE))
+ss_concentration_profiles_selec <- reactive(handlers$concentration_profiles_ss(ss_data=reac_vals$ss, draw_mode = "collective", species = ss_conc_selection(), v_correction=input$v_correction))
+ss_concentration_profiles <- reactive(handlers$concentration_profiles_ss(ss_data=reac_vals$ss, v_correction=input$v_correction))
+
+ss_rate_selection <- reactive(stringr::str_split(input$ss_plot_collective_rr, ", ", simplify = TRUE))
+ss_rate_profiles_selec <- reactive(handlers$rate_profiles_ss(ss_data=reac_vals$ss, draw_mode = "collective", rates = ss_rate_selection()))
+ss_rate_profiles <- reactive(handlers$rate_profiles_ss(ss_data=reac_vals$ss))
+
+ss_combined_profiles <- reactive(handlers$combined_profiles_ss(ss_data=reac_vals$ss))
 
 renderUI(
-if (reac_vals$show_ss_plot == 1) {
-  fluidPage(
-    textInput("ss_plot_collective", label="Enter species names to be plotted together", value = "OrgCA, OrgCB, OrgCC", width = "100%"),
-    renderPlot(ss_concentration_profiles_selec() + theme(legend.text = element_text(size = 13), legend.key.size = unit(1, "cm"), legend.title = element_text(size = 16))),
-    br(),
-    renderPlot(ss_concentration_profiles(), height = function() {225*(length(attributes(reac_vals$ss$y)$dimnames[[2]])/4)}),
-    br(),
-    actionButton("model_func_content", "show / hide model function content"),
-    renderUI(
-      if (reac_vals$show_model_f_cont == TRUE) {
-        div(renderPrint(cat(reac_vals$model_lists$t_combined_expression)), style= "overflow-y:scroll; max-height: 900px")
-       }
+if (reac_vals$show_ss_plots == 1) {
+  tabsetPanel(
+    tabPanel(title="concentration profiles",
+      div(
+      br(),
+      checkboxInput("v_correction", "correction for volume phases", value=TRUE),
+      textInput("ss_plot_collective_cp", label="Enter species names to be plotted together", value = "OrgCA, OrgCB, OrgCC", width = "100%"),
+      renderPlot(ss_concentration_profiles_selec() + theme(legend.text = element_text(size = 13), legend.key.size = unit(1, "cm"), legend.title = element_text(size = 16))),
+      br(),
+      renderPlot(ss_concentration_profiles(), height = function() {225*ceiling(length(attributes(reac_vals$ss$y)$dimnames[[2]])/4)}),
+      style="overflow-y:scroll; max-height: 950px")
+    ),
+    tabPanel(title="reaction rate profiles",
+      div(
+        br(),
+        textInput("ss_plot_collective_rr", label="Enter rate names to be plotted together", value = "R1_a, RN_a, RM_aa, R2_Ox_aa, R3_a, R4_a", width = "100%"),
+        renderPlot(ss_rate_profiles_selec() + theme(legend.text = element_text(size = 13), legend.key.size = unit(1, "cm"), legend.title = element_text(size = 16))),
+        br(),
+        renderPlot(ss_rate_profiles(), height = function() {225*ceiling(length(reac_vals$ss$reaction_rates)/4)}),
+        style="overflow-y:scroll; max-height: 950px")
+    ),
+    tabPanel(title="combined profiles",
+      div(
+        br(),
+        renderPlot(ss_combined_profiles() * theme(legend.text = element_text(size = 13), legend.key.size = unit(1, "cm"), legend.title = element_text(size = 16)),
+                   height = function() {300*ceiling(length(attributes(reac_vals$ss$y)$dimnames[[2]]))}),
+        style="overflow-y:scroll; max-height: 950px")
+    ),
+    tabPanel(title="model function content",
+        div(
+          renderPrint(cat(reac_vals$model_lists$t_combined_expression)),
+          style="overflow-y:scroll; max-height: 950px;")
     )
   )
-} else if (reac_vals$show_ss_plot == 2) {
+} else if (reac_vals$show_ss_plots == 2) {
   renderPrint(cat(reac_vals$ss_prints, sep = "\n"))
 })
 ```

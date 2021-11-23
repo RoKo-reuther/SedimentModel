@@ -3,6 +3,7 @@ library(shiny)
 library(DT)
 library(visNetwork)
 library(ggplot2)
+library(patchwork)
 library(stringr)
 library(shape)
 library(deSolve)
@@ -129,12 +130,13 @@ handlers$chemical_base_main <- function(specify=FALSE, reaction_list){
     }
   }
   
-  return(list(oc_reactions=occurring_reactions, oc_species=occurring_species, col_reactions=reactions_collection))
+  return(list(oc_reactions=occurring_reactions, oc_species=occurring_species, col_reactions=reactions_collection, col_species=species_collection))
 }
 chemical_lists <- handlers$chemical_base_main()
 occurring_reactions <- chemical_lists$oc_reactions
 occurring_species <- chemical_lists$oc_species
 reactions_collection <- chemical_lists$col_reactions
+species_collection <- chemical_lists$col_species
 rm(chemical_lists)
 
 
@@ -316,19 +318,27 @@ boundary_conditions <- handlers$get_boundaries()
 
 ## ---- model-preparation-func --------------------------------------------------------------------
 handlers$create_model_lists <- function(){
+  
+  # backup named species_collection list
+  species_collection_bak <- species_collection
+  # load parameters to function env
   list2env(parameters, envir = rlang::current_env())
+  # get shared reaction constants, shared regulation terms ...
   source(file=configs$chemical_base_config, local=TRUE)
+  # overwrite loaded but unnamed species_collection list
+  species_collection <- species_collection_bak
   
   # table of contents
   # 1) operational species list: "subspecies" will be assigned as own species for the further procedure
   # 2) state vector (needed as function argument)
   # 3) used to label steady-state output; in ode.1D it is used for plotting
-  # 4) state variable assignment expressions
+  # 4.1) state variable assignment expressions
+  # 4.2) inactive species variable assignment expressions
   # 5) temperature expression
   # 6.1) reaction rate constants expressions
   # 6.2) shared reaction terms expressions
   # 6.3) reaction rate equation expressions
-  # 6.4) reaction terms expressions
+  # 6.4) reaction terms expressions ( + extension of "species_operational"-list: "involved_in_rates"-sublist)
   # 7.1) diffusion coefficients expressions
   # 7.2) constant boundary conditions expressions
   # 7.3) varying boundary conditions expressions
@@ -340,7 +350,7 @@ handlers$create_model_lists <- function(){
   
   
   
-  # 1) create operational species list
+  # 1.1) create operational species list
   species_operational <- list()
   for (species in occurring_species){
     # if there are subspecies ...
@@ -349,7 +359,7 @@ handlers$create_model_lists <- function(){
       for (i in seq_along(species$subspecies)){
         species_operational[[species$subspecies[[i]]]] <- c(species["abbreviation"], #to get information out of "occurring_reactions"-list (reference to "mother-species")
                                                             if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]},
-                                                            species["involved_in"], species["phase"],
+                                                            species["involved_in"], involved_in_rates = list(), species["phase"],
                                                             name = species$subspecies[[i]],
                                                             subsp_tag = names(species$subspecies)[i]) #to match the right reaction rate later on (subspecies a, b, c ...?)
       }
@@ -358,10 +368,11 @@ handlers$create_model_lists <- function(){
       # if there is no subspecies: copy entry partly from "occurring_species"-list to "species_operational"-list
       species_operational[[species$abbreviation]] <- c(species["abbreviation"],
                                                        if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]},
-                                                       species["involved_in"], species["phase"],
+                                                       species["involved_in"], involved_in_rates = list(), species["phase"],
                                                        name = species$abbreviation)
     }
   }
+
   
   
   
@@ -377,7 +388,7 @@ handlers$create_model_lists <- function(){
   
   
   
-  # 4) state variable assignment expressions
+  # 4.1) state variable assignment expressions
   state_assign <- list()
   for (i in seq_along(species_operational)){
     var_name <- names(species_operational[i])
@@ -385,6 +396,27 @@ handlers$create_model_lists <- function(){
     end <- (i*N)
     var_content <- paste("pmax(0, state[", begin, ":", end, "])", sep="")
     state_assign[var_name] <- parse(text=paste(var_name, "<-", var_content))
+  }
+  
+  
+  
+  # 4.2) variable assignment for inactive species
+  # to avoid errors due to dependencies of reaction rate equations on other species (e.g. OM degradation reactions)
+  # all not "activated" species have a constant concentration value of 0
+  # determine all "inactive" species
+  inactive_temp <- names(species_collection) %in% names(occurring_species)
+  inactive_temp <- names(species_collection[!inactive_temp])
+  # get subspecies if present and create expressions
+  inactive_species <- list()
+  for (species in inactive_temp) {
+    if (is.null(species_collection[[species]]$subspecies)){
+      inactive_species[species] <- parse(text=paste(species, "<- 0"))
+    }
+    else {
+      for (subspecies in species_collection[[species]]$subspecies) {
+        inactive_species[subspecies] <- parse(text=paste(subspecies, "<- 0"))
+      }
+    }
   }
   
   
@@ -470,7 +502,7 @@ handlers$create_model_lists <- function(){
       else if ((species$phase=="solid")&(temp_reaction$reaction_rates$u_unit=="mol/V_pw/y")) conversion <- "r"
       else conversion <- 1
       
-      # get reaction rate name(s)
+      # get reaction rate name(s) + extend species_operational list: involved_in_rates
       # does reaction occur with two different rates, depending on this species? (e.g. different degrees of degradability of organic matter)
       if ((length(temp_reaction$subsp_def) == 0) || (! species$abbreviation %in% temp_reaction$subsp_def)){
         # yes: either there is no differentiation of reaction rates for this reaction or it is not differentiated "for this species"
@@ -478,6 +510,13 @@ handlers$create_model_lists <- function(){
         # and store them in "reaction_rates"-string, connected by plus-sign, in form of a function call
         reaction_rates <- ""
         for (i in seq_along(temp_reaction$reaction_rates$equations)){
+          # "+/-" + rate name + rate unit stored in "species_operational[[species]]$involved_in_rates" for species selective rate plotting
+          algebraic_sign <- ifelse(educt, "-", "+")
+          rate_name <- names(temp_reaction$reaction_rates$equations[i])
+          reaction_name <- occurring_reactions[[element]]$name
+          u_unit <- temp_reaction$reaction_rates$u_unit
+          species_operational[[species$name]]$involved_in_rates[[rate_name]] <- list(rate_name=rate_name, reaction_name=reaction_name, sign=algebraic_sign, u_unit=u_unit)
+          # rate name for reaction terms
           rr_temp <- paste("+", names(temp_reaction$reaction_rates$equations[i]), sep = "")
           reaction_rates <- paste(reaction_rates, rr_temp)
         }
@@ -503,6 +542,13 @@ handlers$create_model_lists <- function(){
           reaction_rates <- "0"
         } else {
           for (i in seq_along(reaction_names)){
+            # "+/-" + rate name stored in "species_operational[[species]]$involved_in_rates" for species selective rate plotting
+            algebraic_sign <- ifelse(educt, "-", "+")
+            rate_name <- names(reaction_names[i])
+            reaction_name <- occurring_reactions[[element]]$name
+            u_unit <- temp_reaction$reaction_rates$u_unit
+            species_operational[[species$name]]$involved_in_rates[[rate_name]] <- list(rate_name=rate_name, reaction_name=reaction_name, sign=algebraic_sign, u_unit=u_unit)
+            # rate name for reaction terms
             rr_temp <- paste("+", names(reaction_names[i]), sep = "")
             reaction_rates <- paste(reaction_rates, rr_temp)
           }
@@ -602,11 +648,13 @@ handlers$create_model_lists <- function(){
   }
   
   # create "vector containing the derivatives of y (state) with respect to time", which are the "total concentration change terms" in our case
-  ennumeration1 <- list_to_ennumeration(total_c_change)
+  ennum_tc <- list_to_ennumeration(total_c_change)
   
   # create list of "next elements whose steady-state value are also required" (reaction rates, shared reaction terms, reaction terms, fluxes at upper and lower boundary)
-  # everything except the upper and lower boundary content can be done with "list to ennumeration"-function
-  ennumeration2 <- list_to_ennumeration(c(rate_equations, shared_reg_terms, reaction_terms))
+  # everything except the upper and lower boundary content and transport terms can be done with "list to ennumeration"-function
+  ennum_re <- list_to_ennumeration(rate_equations)
+  ennum_sr <- list_to_ennumeration(shared_reg_terms)
+  ennum_rt <- list_to_ennumeration(reaction_terms)
   
   # fluxes at upper and lower boundary (FU_X=tranX$flux.up and FD_X=tranX$flux.down for each species X)
   fluxes_ennumeration <- function(){
@@ -622,7 +670,7 @@ handlers$create_model_lists <- function(){
     }
     return(ennumeration)
   }
-  ennumeration3 <- fluxes_ennumeration()
+  ennum_fl <- fluxes_ennumeration()
   
   # change in concentration through transport processes (tranX$dC=tranX$dC for each species X)
   dC_ennumeration <- function(){
@@ -638,15 +686,17 @@ handlers$create_model_lists <- function(){
     }
     return(ennumeration)
   }
-  ennumeration4 <- dC_ennumeration()
+  ennum_dC <- dC_ennumeration()
   
   # create returnstatement
-  returnexpr <- parse(text=paste("return(list(c(", ennumeration1, "), ", ennumeration2, ", ", ennumeration3, ", ", ennumeration4, "))", sep=""))
+  returnexpr <- parse(text=paste("return(list(c(", ennum_tc, "), reaction_rates=list(", ennum_re, "), shared_reg_terms=list(", ennum_sr, 
+                                 "), reaction_terms=list(", ennum_rt, "), fluxes=list(", ennum_fl, "), transport=list(", ennum_dC, ")))", sep=""))
   
   
   
   # 10) combined expression to be evaluated in model function
   combined_expression <- c(state_assign,
+                           inactive_species,
                            temperature,
                            rate_constants,
                            shared_reg_terms,
@@ -666,7 +716,7 @@ handlers$create_model_lists <- function(){
   expr2textblock <- function(myexpr, headercomment) {
     result <- headercomment
     for (i in myexpr) {
-      result <- paste(result, paste(deparse(i, width.cutoff = 70), collapse = "\n"), sep = "\n")
+      result <- paste(result, paste(deparse(i, width.cutoff = 60), collapse = "\n"), sep = "\n")
     }
     result <- paste(result, "", sep = "\n")
     return(result)
@@ -674,6 +724,7 @@ handlers$create_model_lists <- function(){
   
   # convert expressions to code subsections with header
   t_state_assign        <- expr2textblock(state_assign, "# state variables")
+  t_inactive_species    <- expr2textblock(inactive_species, "# AUXILIARY: inactivated species")
   t_temperature         <- expr2textblock(temperature, "# current temperature")
   t_rate_constants      <- expr2textblock(rate_constants, "# rate constants")
   t_shared_reg_terms    <- expr2textblock(shared_reg_terms, "# shared regulation terms")
@@ -688,6 +739,7 @@ handlers$create_model_lists <- function(){
   
   # bring it all together ...
   t_combined_expression <- paste(t_state_assign,
+                                 t_inactive_species,
                                  t_temperature,
                                  t_rate_constants,
                                  t_shared_reg_terms,
@@ -735,9 +787,10 @@ ss <- steady.1D(y = model_lists$state,
 
 ## ---- plots -------------------------------------------------------------------------------------
 # draw concentration profiles for species for steady state solution
-handlers$concentration_profiles_ss <- function(species=NULL, draw_mode = "facet_wrap", ss_data=ss, trans_data=trans){
-  # species: vector of species to draw concentration profile
+handlers$concentration_profiles_ss <- function(species=NULL, draw_mode="facet_wrap", ss_data=ss, v_correction=TRUE){
+  # species: vector of species to draw concentration profile in the form c("species1", "species2")
   # draw_mode: either "facet_wrap", "collective"
+  # v_correction: convert mol/m³_sf /mol/m³_pw to mol/m³ (total volume)
   
   # create complete concentrations data-frame 
   df.ss_cs <- data.frame(
@@ -745,13 +798,15 @@ handlers$concentration_profiles_ss <- function(species=NULL, draw_mode = "facet_
     concentration = c(ss_data$y),
     species = rep(attributes(ss_data$y)$dimnames[[2]], each=parameters$N))
   
-  # correct for solid volume fraction/porosity -> get all concentrations in mol/m³ total volume
-  for (element in model_lists$species_operational){
-    if (element$phase == "solute"){
-      df.ss_cs[df.ss_cs$species == element$name, "concentration"] <- df.ss_cs[df.ss_cs$species == element$name, "concentration"] * grid_collection$por.grid$mid
-    }
-    else if (element$phase == "solid"){
-      df.ss_cs[df.ss_cs$species == element$name, "concentration"] <- df.ss_cs[df.ss_cs$species == element$name, "concentration"] * grid_collection$svf.grid$mid
+  # correct for solid volume fraction/porosity by default -> get all concentrations in mol/m³ total volume
+  if (v_correction){
+    for (element in model_lists$species_operational){
+      if (element$phase == "solute"){
+        df.ss_cs[df.ss_cs$species == element$name, "concentration"] <- df.ss_cs[df.ss_cs$species == element$name, "concentration"] * grid_collection$por.grid$mid
+      }
+      else if (element$phase == "solid"){
+        df.ss_cs[df.ss_cs$species == element$name, "concentration"] <- df.ss_cs[df.ss_cs$species == element$name, "concentration"] * grid_collection$svf.grid$mid
+      }
     }
   }
   
@@ -764,7 +819,69 @@ handlers$concentration_profiles_ss <- function(species=NULL, draw_mode = "facet_
   
   # plot
   myplot <- ggplot(data = df.plot) +
-    labs(x="concentration (mol/m³)", y = "depth (m)") + 
+    scale_y_continuous(trans = "reverse") +
+    theme_light() + 
+    theme(strip.text.x = element_text(colour = "black"),
+          axis.title = element_text(size = 13))
+  
+  if (v_correction){
+    myplot <- myplot + labs(x="concentration (mol/m³)", y = "depth (m)")
+  } else {
+    myplot <- myplot + labs(x="concentration (mol/m³_pw // mol/m³_sf)", y = "depth (m)")
+  }
+  
+  if (draw_mode == "facet_wrap"){
+    myplot <- myplot +
+      geom_path(mapping = aes(concentration, depth)) +
+      scale_color_discrete(guide = "none") +
+      facet_wrap(~species, scales = "free_x", ncol = 4)
+  } else if (draw_mode == "collective"){
+    myplot <- myplot +
+      geom_path(mapping = aes(concentration, depth, color=species))
+  }
+  myplot
+}
+
+# draw rate profiles for steady state solution
+handlers$rate_profiles_ss <- function(rates=NULL, draw_mode = "facet_wrap", ss_data=ss){
+  # reactions: vector of reaction rates to draw profile in the form c("reaction1", "reaction2")
+  # draw_mode: either "facet_wrap", "collective"
+  
+  # create complete reaction rates data-frame 
+  df.ss_rr <- data.frame(
+    depth = rep(grid_collection$grid$x.mid, length(ss_data$reaction_rates)),
+    rates = unlist(ss_data$reaction_rates),
+    ratename = rep(names(ss_data$reaction_rates), each=parameters$N))
+  
+  # create operational reactions list (mainly for plotting reaction rates)
+  reactions_operational <- list()
+  for (reaction in occurring_reactions){
+    for (i in seq_along(reaction$reaction_rates$equations)){
+      name <- names(reaction$reaction_rates$equations)[i]
+      reactions_operational[[name]] <- list(name=name, unit=reaction$reaction_rates$u_unit)
+    }
+  }
+  
+  # correct for solid volume fraction/porosity -> get all reaction rates in mol/m³/y total volume
+  for (element in reactions_operational){
+    if (element$unit == "mol/V_pw/y"){
+      df.ss_rr[df.ss_rr$ratename == element$name, "rates"] <- df.ss_rr[df.ss_rr$ratename == element$name, "rates"] * grid_collection$por.grid$mid
+    }
+    else if (element$unit == "mol/V_sf/y"){
+      df.ss_rr[df.ss_rr$ratename == element$name, "rates"] <- df.ss_rr[df.ss_rr$ratename == element$name, "rates"] * grid_collection$svf.grid$mid
+    }
+  }
+  
+  # get requested subset data frame to plot (if rates are specified)
+  if (is.null(rates)){
+    df.plot <- df.ss_rr
+  } else {
+    df.plot <- df.ss_rr[df.ss_rr$ratename %in% rates, ]
+  }
+  
+  # plot
+  myplot <- ggplot(data = df.plot) +
+    labs(x="reaction rate (mol/m³/a)", y = "depth (m)") + 
     scale_y_continuous(trans = "reverse") +
     theme_light() + 
     theme(strip.text.x = element_text(colour = "black"),
@@ -772,13 +889,80 @@ handlers$concentration_profiles_ss <- function(species=NULL, draw_mode = "facet_
   
   if (draw_mode == "facet_wrap"){
     myplot <- myplot +
-      geom_path(mapping = aes(concentration, depth)) +
+      geom_path(mapping = aes(rates, depth)) +
       scale_color_discrete(guide = "none") +
-      facet_wrap(~species, scales = "free_x", ncol = 4)
+      facet_wrap(~ratename, scales = "free_x", ncol = 4)
   }
   else if (draw_mode == "collective"){
     myplot <- myplot +
-      geom_path(mapping = aes(concentration, depth, color=species))
+      geom_path(mapping = aes(rates, depth, color=ratename))
   }
   myplot
+}
+
+# draw combined plot: species specific reaction rates + transport
+handlers$combined_profiles_ss <- function(species=NULL, ss_data=ss){
+  # species: vector of species to draw combined profiles in the form c("species1", "species2")
+  
+  # select all occurring species if species-argument is NULL
+  if (is.null(species)) {
+    species <- names(model_lists$species_operational)
+  }
+  
+  df.collection <- list()
+  # create combined data-frame for each species and bind it to df.plot
+  for (element in species){
+    
+    # if species is involved in reactions: create subdataframe for reactions and transport
+    if (length(model_lists$species_operational[[element]]$involved_in_rates) != 0){
+      # sub-dataframe reaction rates
+      rates.dflist <-lapply(model_lists$species_operational[[element]]$involved_in_rates, function(x) { # list of dataframes for each single reaction rate
+        data.frame(
+          depth = grid_collection$grid$x.mid,
+          value = ss_data$reaction_rates[[x$rate_name]] * ifelse(x$sign == "+", 1, -1) * ifelse(x$u_unit == "mol/V_pw/y", grid_collection$por.grid$mid, grid_collection$svf.grid$mid),
+          type = c("rate"),
+          description = paste(x$reaction_name, " (", x$rate_name, ")", sep="")
+        )
+      })     
+      df.rates <- do.call(rbind, args=c(rates.dflist, make.row.names=FALSE)) # one data frame for all reaction rates
+      
+      # sub-dataframe transport
+      df.tran <- data.frame(
+        depth = grid_collection$grid$x.mid,
+        value = ss_data$transport[[paste("trandC_", element, sep="")]] * grid_collection$grid$dx,
+        type = c("tran"),
+        description = "change due to transport"
+      )
+      
+      # join sub-dataframes and store it in df.collection-list
+      df.collection[[element]] <- rbind(df.rates, df.tran)
+      df.collection[[element]] <- cbind(df.collection[[element]], species=element)
+      
+    } else { # all changes occur through transport
+      # sub-dataframe transport
+      df.collection[[element]] <- data.frame(
+        depth = grid_collection$grid$x.mid,
+        value = ss_data$transport[[paste("trandC_", element, sep="")]] * grid_collection$grid$dx,
+        type = c("tran"),
+        description = "change due to transport",
+        species=element
+      )
+    }
+  }
+  
+  # apply ggplot function and write to list
+  plotlist = lapply(df.collection, function(x) {
+    ggplot(x, mapping = aes(value, depth, color=description)) + 
+      geom_path() +
+      geom_vline(xintercept = 0) +
+      facet_wrap(~ species) +
+      labs(x="rate (mol/m³/a)", y = "depth (m)") + 
+      scale_y_continuous(trans = "reverse") +
+      theme_light() + 
+      scale_color_discrete(name = NULL) +
+      theme(strip.text.x = element_text(colour = "black"),
+            axis.title = element_text(size = 13))
+  })
+  # wrap plots together
+  wrap_plots(plotlist, ncol = 1)
 }
