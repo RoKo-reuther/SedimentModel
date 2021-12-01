@@ -1,6 +1,7 @@
 ---
 title: "Model Walkthrough"
-output: html_document
+output:
+  html_document
 runtime: shiny
 ---
 
@@ -13,14 +14,10 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::read_chunk('pure_code.R')
 ```
 
-```{r, libraries, echo=FALSE, message=FALSE, warning=FALSE}
-```
-
-```{r, preparations, echo=FALSE}
-```
-
 ```{r initial_setup, echo=FALSE, include=FALSE}
 <<libraries>>
+library(plotly)
+library(shinyAce)
 <<preparations>>
 reac_vals <- reactiveValues()
 <<set_configs>>
@@ -47,6 +44,7 @@ reac_vals$parameters <- parameters
 reac_vals$occurring_reactions <- occurring_reactions
 reac_vals$occurring_species <- occurring_species
 reac_vals$reactions_collection <- reactions_collection
+reac_vals$species_operational <- species_operational
 <<grid_setup>>
 reac_vals$grid_collection <- grid_collection
 <<boundary_conditions>>
@@ -84,9 +82,11 @@ observeEvent(reac_vals$config_chem, {
   occurring_reactions <<- occurring_reactions
   occurring_species <<- occurring_species
   reactions_collection <<- reactions_collection
+  species_operational <<- species_operational
   reac_vals$occurring_reactions <- occurring_reactions
   reac_vals$occurring_species <- occurring_species
   reac_vals$reactions_collection <- reactions_collection
+  reac_vals$species_operational <- species_operational
   })
 
 # observe occurring_reactions
@@ -194,7 +194,7 @@ observeEvent(input$update_parms, {
 
 observeEvent(input$reset_parms, {
   parameters <<- parameters_bak
-  update_parms_display()
+  reac_vals$parameters <- parameters
 })
 
 update_parms_list <- function(){
@@ -313,8 +313,10 @@ observeEvent(input$select_reactions, {
     chemical_lists <- handlers$chemical_base_main(specify=TRUE, as.list({input$reactions_selection}))
     occurring_reactions <<- chemical_lists$oc_reactions
     occurring_species <<- chemical_lists$oc_species
+    species_operational <<- chemical_lists$species_oper
     reac_vals$occurring_reactions <- occurring_reactions
     reac_vals$occurring_species <- occurring_species
+    reac_vals$species_operational <- species_operational
   })
 
 ## "(de)select all reactions" button
@@ -333,7 +335,216 @@ observeEvent(input$reset_reacs, {
   })
 ```
 
-### run model
+### Boundary Conditions
+
+```{r boundary conditions UI, echo=FALSE}
+# overview panel
+renderUI(
+  div(
+    lapply(reac_vals$species_operational, FUN = function(species) {
+      div(
+        fluidRow(
+          column(2, actionButton(inputId = paste("boundary_", species$name, sep=""), label = species$name, width = "100%", style="position:relative; top:1px; border-width:medium")),
+          column(1, div("up:", style="font-size:16px; position:relative; right:-40px; top:7px")),
+          column(4, renderPrint(ifelse(is.null(reac_vals$boundary_conditions[[species$name]]$up), "zero gradient", reac_vals$boundary_conditions[[species$name]]$up))),
+          column(1, div("down:", style="font-size:16px; position:relative; right:-20px; top:7px")),
+          column(4, renderPrint(ifelse(is.null(reac_vals$boundary_conditions[[species$name]]$down), "zero gradient", reac_vals$boundary_conditions[[species$name]]$down)))
+        ),
+        br()
+      )
+    }),
+    style="overflow-y:scroll; max-height: 700px;"
+  )
+)
+
+# menu
+observe(lapply({reac_vals$species_operational}, FUN= function(species) {
+  observeEvent({eval(parse(text=paste("input$boundary_", species$name, sep="")))}, {
+               
+                reac_vals$boundary_to_modify <- species$name
+                
+                reac_vals$boundary_up <- reac_vals$boundary_conditions[[species$name]]$up
+                boundary_up_type <- ifelse(is.null(reac_vals$boundary_up), "zg", ifelse(is.numeric(reac_vals$boundary_up), "v",
+                                                                                        ifelse(exists("csv.file", environment(reac_vals$boundary_up)), "ac", "cf")))
+                reac_vals$boundary_down <- reac_vals$boundary_conditions[[species$name]]$down
+                boundary_down_type <- ifelse(is.null(reac_vals$boundary_down), "zg", ifelse(is.numeric(reac_vals$boundary_down), "v",
+                                                                                        ifelse(exists("csv.file", environment(reac_vals$boundary_down)), "ac", "cf")))
+                reac_vals$ac_preview_up <- FALSE
+                reac_vals$ac_preview_down <- FALSE
+                
+                showModal(
+                  modalDialog(title=paste("Boundary Conditions", species$name), size="m", {
+                      div(style="height:440px;", tabsetPanel(type="pills",
+                        # tab "up"
+                        tabPanel(title="up",
+                          # boundary type selection
+                          column(4, style="height:415px; display: flex; align-items: center;", div(
+                              radioButtons(inputId = "selec1_up", label=NULL, selected = ifelse(boundary_up_type == "zg", "zg", "sv"),
+                                choiceNames = c("zero gradient", " set concentration/flux"),
+                                choiceValues = c("zg", "sv")
+                                ),
+                              conditionalPanel("input.selec1_up == 'sv'",
+                                div(style="position:relative; top:0px; left:17px",
+                                    radioButtons(inputId = "selec2_up", label=NULL,
+                                                 selected = ifelse(boundary_up_type != "zg", boundary_up_type, "v"),
+                                       choiceNames = c("value", "annual cycle", "custom function"),
+                                       choiceValues = c("v", "ac", "cf")))
+                                )
+                              )
+                            ),
+                          # boundary specification
+                          column(8, style="border: 3px solid #82a4cf; border-radius:5px; height:400px; display: flex; align-items: center;", div(style="width:100%",
+                              conditionalPanel("input.selec1_up == 'sv'",
+                                   # numeric value
+                                   conditionalPanel("input.selec2_up == 'v'",
+                                          renderUI(
+                                            if (boundary_up_type == "v") {
+                                              textInput("bound_up_v", label=NULL, placeholder=reac_vals$boundary_up, width="100%")}
+                                            else {
+                                              textInput("bound_up_v", label=NULL, placeholder="enter value", width="100%")}
+                                            )),
+                                   # "annual cycle function
+                                   conditionalPanel("input.selec2_up == 'ac'", style="position:relative; top:13px;",
+                                          renderUI(
+                                            if (boundary_up_type == "ac") {
+                                              fileInput("bound_up_ac", label=NULL, placeholder=environment(reac_vals$boundary_up)$csv.file, width="100%")}
+                                            else {
+                                              fileInput("bound_up_ac", label=NULL, placeholder="select csv file for annual_cycle()", width="100%")}
+                                            ),
+                                          renderUI(
+                                            if(reac_vals$ac_preview_up) {
+                                              div(renderPlot(height = 320, plot(reac_vals$boundary_ac_preview, xlab="time (one year)", ylab="")), style="position:relative; top:-15px")}
+                                            else if(boundary_up_type == "ac") {
+                                              div(renderPlot(height = 320, plot(reac_vals$boundary_up, xlab="time (one year)", ylab="")), style="position:relative; top:-15px")}
+                                            )),
+                                   # custom function
+                                   conditionalPanel("input.selec2_up == 'cf'", style="position:relative; top:4px;",
+                                          renderUI(
+                                            if (boundary_up_type == "cf") {
+                                              aceEditor("bound_up_cf", paste(deparse(reac_vals$boundary_up), sep="\n"), height=370)}
+                                            else {
+                                              aceEditor("bound_up_cf", paste("function(t) {", "", "}", sep="\n"), height=370)}
+                                            ))
+                                   )
+                              )
+                            )
+                          ),
+                        # tab "down"                                     
+                        tabPanel(title="down",
+                          # boundary type selection
+                          column(4, style="height:415px; display: flex; align-items: center;", div(
+                              radioButtons(inputId = "selec1_down", label=NULL, selected = ifelse(boundary_down_type == "zg", "zg", "sv"),
+                                choiceNames = c("zero gradient", " set concentration/flux"),
+                                choiceValues = c("zg", "sv")
+                                ),
+                              conditionalPanel("input.selec1_down == 'sv'",
+                                div(style="position:relative; top:0px; left:17px",
+                                    radioButtons(inputId = "selec2_down", label=NULL,
+                                                 selected = ifelse(boundary_down_type != "zg", boundary_down_type, "v"),
+                                       choiceNames = c("value", "annual cycle", "custom function"),
+                                       choiceValues = c("v", "ac", "cf")))
+                                )
+                              )
+                            ),
+                          # boundary specification
+                          column(8, style="border: 3px solid #82a4cf; border-radius:5px; height:400px; display: flex; align-items: center;", div(style="width:100%",
+                              conditionalPanel("input.selec1_down == 'sv'",
+                                   # numeric value
+                                   conditionalPanel("input.selec2_down == 'v'",
+                                          renderUI(
+                                            if (boundary_down_type == "v") {
+                                              textInput("bound_down_v", label=NULL, placeholder=reac_vals$boundary_down, width="100%")}
+                                            else {
+                                              textInput("bound_down_v", label=NULL, placeholder="enter value", width="100%")}
+                                            )),
+                                   # "annual cycle function
+                                   conditionalPanel("input.selec2_down == 'ac'", style="position:relative; top:13px;",
+                                          renderUI(
+                                            if (boundary_down_type == "ac") {
+                                              fileInput("bound_down_ac", label=NULL, placeholder=environment(reac_vals$boundary_down)$csv.file, width="100%")}
+                                            else {
+                                              fileInput("bound_down_ac", label=NULL, placeholder="select csv file for annual_cycle()", width="100%")}
+                                            ),
+                                          renderUI(
+                                            if(reac_vals$ac_preview_down) {
+                                              div(renderPlot(height = 320, plot(reac_vals$boundary_ac_preview, xlab="time (one year)", ylab="")), style="position:relative; top:-15px")}
+                                            else if(boundary_down_type == "ac") {
+                                              div(renderPlot(height = 320, plot(reac_vals$boundary_down, xlab="time (one year)", ylab="")), style="position:relative; top:-15px")}
+                                            )),
+                                   # custom function
+                                   conditionalPanel("input.selec2_down == 'cf'", style="position:relative; top:4px;",
+                                          renderUI(
+                                            if (boundary_down_type == "cf") {
+                                              aceEditor("bound_down_cf", paste(deparse(reac_vals$boundary_down), sep="\n"), height=370)}
+                                            else {
+                                              aceEditor("bound_down_cf", paste("function(t) {", "", "}", sep="\n"), height=370)}
+                                            ))
+                                   )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    }, footer = div(modalButton("Dismiss"), actionButton("apply_boundaries", "Apply changes",style="border-width:2px;"))
+                  )
+                )
+    })
+}))
+
+# load csv observer: up
+observeEvent(input$bound_up_ac, {
+  datapath <- input$bound_up_ac$datapath
+  reac_vals$boundary_ac_preview <- handlers$annual_cycle(csv.file = datapath)
+  reac_vals$ac_preview_up <- TRUE
+  })
+
+# load csv observer: down
+observeEvent(input$bound_down_ac, {
+  datapath <- input$bound_down_ac$datapath
+  reac_vals$boundary_ac_preview <- handlers$annual_cycle(csv.file = datapath)
+  reac_vals$ac_preview_down <- TRUE
+  })
+
+
+# apply boundary changes
+observeEvent(input$apply_boundaries, {
+  # up:
+  if (input$selec1_up == "zg") {
+    reac_vals$boundary_conditions[[reac_vals$boundary_to_modify]]$up <- NULL
+  }
+  else if (input$selec2_up == "v") {
+    reac_vals$boundary_conditions[[reac_vals$boundary_to_modify]]$up <- as.numeric(input$bound_up_v)
+  }
+  else if (input$selec2_up == "ac") {
+    datapath <- input$bound_up_ac$datapath
+    reac_vals$boundary_conditions[[reac_vals$boundary_to_modify]]$up <- handlers$annual_cycle(csv.file = datapath)
+  }
+  else if (input$selec2_up == "cf") {
+    reac_vals$boundary_conditions[[reac_vals$boundary_to_modify]]$up <- eval(parse(text=input$bound_up_cf))
+  }
+  
+  # down:
+  if (input$selec1_down == "zg") {
+    reac_vals$boundary_conditions[[reac_vals$boundary_to_modify]]$down <- NULL
+  }
+  else if (input$selec2_down == "v") {
+    reac_vals$boundary_conditions[[reac_vals$boundary_to_modify]]$down <- as.numeric(input$bound_down_v)
+  }
+  else if (input$selec2_down == "ac") {
+    datapath <- input$bound_down_ac$datapath
+    reac_vals$boundary_conditions[[reac_vals$boundary_to_modify]]$down <- handlers$annual_cycle(csv.file = datapath)
+  }
+  else if (input$selec2_down == "cf") {
+    reac_vals$boundary_conditions[[reac_vals$boundary_to_modify]]$down <- eval(parse(text=input$bound_down_cf))
+  }
+  
+  # update boundary_conditions list and close dialog
+  boundary_conditions <<- reac_vals$boundary_conditions
+  removeModal()
+})
+```
+
+## Run Model
 ```{r steady_state, echo=FALSE}
 actionButton("steady_state", "solve steady state")
 
@@ -369,26 +580,24 @@ ss_rate_selection <- reactive(stringr::str_split(input$ss_plot_collective_rr, ",
 ss_rate_profiles_selec <- reactive(handlers$rate_profiles_ss(ss_data=reac_vals$ss, draw_mode = "collective", rates = ss_rate_selection()))
 ss_rate_profiles <- reactive(handlers$rate_profiles_ss(ss_data=reac_vals$ss))
 
-ss_combined_profiles <- reactive(handlers$combined_profiles_ss(ss_data=reac_vals$ss))
-
 renderUI(
 if (reac_vals$show_ss_plots == 1) {
   tabsetPanel(
     tabPanel(title="concentration profiles",
       div(
-      br(),
-      checkboxInput("v_correction", "correction for volume phases", value=TRUE),
-      textInput("ss_plot_collective_cp", label="Enter species names to be plotted together", value = "OrgCA, OrgCB, OrgCC", width = "100%"),
-      renderPlot(ss_concentration_profiles_selec() + theme(legend.text = element_text(size = 13), legend.key.size = unit(1, "cm"), legend.title = element_text(size = 16))),
-      br(),
-      renderPlot(ss_concentration_profiles(), height = function() {225*ceiling(length(attributes(reac_vals$ss$y)$dimnames[[2]])/4)}),
-      style="overflow-y:scroll; max-height: 950px")
+        br(),
+        checkboxInput("v_correction", "correction for volume phases", value=TRUE),
+        textInput("ss_plot_collective_cp", label="Enter species names to be plotted together", value = "OrgCA, OrgCB, OrgCC", width = "100%"),
+        renderPlotly(ggplotly(ss_concentration_profiles_selec() + theme(legend.text = element_text(size = 11), legend.key.size = unit(0.8, "cm"))+ scale_color_discrete(name = NULL))),
+        br(),
+        renderPlot(ss_concentration_profiles(), height = function() {225*ceiling(length(attributes(reac_vals$ss$y)$dimnames[[2]])/4)}),
+        style="overflow-y:scroll; max-height: 950px")
     ),
     tabPanel(title="reaction rate profiles",
       div(
         br(),
         textInput("ss_plot_collective_rr", label="Enter rate names to be plotted together", value = "R1_a, RN_a, RM_aa, R2_Ox_aa, R3_a, R4_a", width = "100%"),
-        renderPlot(ss_rate_profiles_selec() + theme(legend.text = element_text(size = 13), legend.key.size = unit(1, "cm"), legend.title = element_text(size = 16))),
+        renderPlotly(ggplotly(ss_rate_profiles_selec() + theme(legend.text = element_text(size = 11), legend.key.size = unit(0.8, "cm")) + scale_color_discrete(name = NULL))),
         br(),
         renderPlot(ss_rate_profiles(), height = function() {225*ceiling(length(reac_vals$ss$reaction_rates)/4)}),
         style="overflow-y:scroll; max-height: 950px")
@@ -396,8 +605,7 @@ if (reac_vals$show_ss_plots == 1) {
     tabPanel(title="combined profiles",
       div(
         br(),
-        renderPlot(ss_combined_profiles() * theme(legend.text = element_text(size = 13), legend.key.size = unit(1, "cm"), legend.title = element_text(size = 16)),
-                   height = function() {300*ceiling(length(attributes(reac_vals$ss$y)$dimnames[[2]]))}),
+        lapply(names(reac_vals$model_lists$species_operational), function(x) renderPlotly(ggplotly(handlers$combined_profiles_ss(ss_data=reac_vals$ss, species=x)))),
         style="overflow-y:scroll; max-height: 950px")
     ),
     tabPanel(title="model function content",

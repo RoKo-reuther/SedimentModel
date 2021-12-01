@@ -130,13 +130,37 @@ handlers$chemical_base_main <- function(specify=FALSE, reaction_list){
     }
   }
   
-  return(list(oc_reactions=occurring_reactions, oc_species=occurring_species, col_reactions=reactions_collection, col_species=species_collection))
+  # create operational species list: "subspecies" will be assigned as own species for the further procedure
+  species_operational <- list()
+  for (species in occurring_species){
+    # if there are subspecies ...
+    if (length(species$subspecies) > 0) {
+      # ... create new species-entries for each subspecies; copy information from "mother-species" for further processing.
+      for (i in seq_along(species$subspecies)){
+        species_operational[[species$subspecies[[i]]]] <- c(species["abbreviation"], #to get information out of "occurring_reactions"-list (reference to "mother-species")
+                                                            if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]},
+                                                            species["involved_in"], involved_in_rates = list(), species["phase"],
+                                                            name = species$subspecies[[i]],
+                                                            subsp_tag = names(species$subspecies)[i]) #to match the right reaction rate later on (subspecies a, b, c ...?)
+      }
+    }
+    else{
+      # if there is no subspecies: copy entry partly from "occurring_species"-list to "species_operational"-list
+      species_operational[[species$abbreviation]] <- c(species["abbreviation"],
+                                                       if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]},
+                                                       species["involved_in"], involved_in_rates = list(), species["phase"],
+                                                       name = species$abbreviation)
+    }
+  }
+  
+  return(list(oc_reactions=occurring_reactions, oc_species=occurring_species, col_reactions=reactions_collection, col_species=species_collection, species_oper=species_operational))
 }
 chemical_lists <- handlers$chemical_base_main()
 occurring_reactions <- chemical_lists$oc_reactions
 occurring_species <- chemical_lists$oc_species
 reactions_collection <- chemical_lists$col_reactions
 species_collection <- chemical_lists$col_species
+species_operational <- chemical_lists$species_oper
 rm(chemical_lists)
 
 
@@ -309,6 +333,26 @@ grid_collection <- handlers$grid_setup()
 
 
 ## ---- boundary_conditions -----------------------------------------------------------------------
+handlers$annual_cycle <- function(csv.file, smoothing=0.5) {
+  # load in data
+  temp.data <- read.delim2(csv.file)
+  # "extrapolate" loaded partial one-year time series to get complete year cycle in spline
+  temp.time <- c(temp.data[["time"]]-1, temp.data[["time"]], temp.data[["time"]]+1)
+  temp.value <- rep(temp.data[["value"]], 3)
+  # evaluate the spline
+  temp.spline <- smooth.spline(temp.time, temp.value, spar = smoothing)
+  # set all negative values to zero
+  temp.spline$y[temp.spline$y < 0] = 0
+  # approximate function
+  approximated <- approxfun(temp.spline)
+  result <- function(t) {
+    # annual cycle
+    t <- t%%1
+    return(approximated(t))
+  }
+  return(result)
+}
+
 handlers$get_boundaries <- function(){
   source(file=configs$boundary_conditions_config, local=TRUE)
   return(boundary_conditions)
@@ -329,7 +373,7 @@ handlers$create_model_lists <- function(){
   species_collection <- species_collection_bak
   
   # table of contents
-  # 1) operational species list: "subspecies" will be assigned as own species for the further procedure
+  # 1) ...removed...
   # 2) state vector (needed as function argument)
   # 3) used to label steady-state output; in ode.1D it is used for plotting
   # 4.1) state variable assignment expressions
@@ -340,41 +384,14 @@ handlers$create_model_lists <- function(){
   # 6.3) reaction rate equation expressions
   # 6.4) reaction terms expressions ( + extension of "species_operational"-list: "involved_in_rates"-sublist)
   # 7.1) diffusion coefficients expressions
-  # 7.2) constant boundary conditions expressions
-  # 7.3) varying boundary conditions expressions
-  # 7.4) transport terms expressions
+  # 7.2) boundary conditions expressions
+  # 7.3) transport terms expressions
   # 8) total change in concentration expressions: transport term + reaction term for each species
   # 9) return statement
   # 10) combined expression -> evaluated in model function
   # 11) combined expression as text -> readable version of expressions evaluated in model function
   
-  
-  
-  # 1.1) create operational species list
-  species_operational <- list()
-  for (species in occurring_species){
-    # if there are subspecies ...
-    if (length(species$subspecies) > 0) {
-      # ... create new species-entries for each subspecies; copy information from "mother-species" for further processing.
-      for (i in seq_along(species$subspecies)){
-        species_operational[[species$subspecies[[i]]]] <- c(species["abbreviation"], #to get information out of "occurring_reactions"-list (reference to "mother-species")
-                                                            if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]},
-                                                            species["involved_in"], involved_in_rates = list(), species["phase"],
-                                                            name = species$subspecies[[i]],
-                                                            subsp_tag = names(species$subspecies)[i]) #to match the right reaction rate later on (subspecies a, b, c ...?)
-      }
-    }
-    else{
-      # if there is no subspecies: copy entry partly from "occurring_species"-list to "species_operational"-list
-      species_operational[[species$abbreviation]] <- c(species["abbreviation"],
-                                                       if("abbr_diffcoeff" %in% names(species)){species["abbr_diffcoeff"]},
-                                                       species["involved_in"], involved_in_rates = list(), species["phase"],
-                                                       name = species$abbreviation)
-    }
-  }
 
-  
-  
   
   # 2) & 3)
   state <- c()
@@ -571,46 +588,101 @@ handlers$create_model_lists <- function(){
   solute_diffcoeffs <- expression(Dmols <- as.list(diffcoeff(S = parameters$S, t = TC, P = parameters$P, species = grid_collection$solutes$names)),
                                   mapply(FUN=grid_collection$solutes$func, name=grid_collection$solutes$D_names, Dmol.X=Dmols))
   
-  # 7.2) constant boundary conditions expressions
-  boundaries_constant <- c()
-  for (i in seq_along(boundary_conditions$constant)){
-    boundaries_constant <- c(boundaries_constant, parse(text=paste(names(boundary_conditions$constant)[i], "<-", boundary_conditions$constant[i], ";")))
-  }
-  
-  # 7.3) varying boundary conditions expressions
-  boundaries_varying <- c()
-  for (i in seq_along(boundary_conditions$varying)){
-    boundaries_varying <- c(boundaries_varying, parse(text=paste(names(boundary_conditions$varying)[i], " <- ", "boundary_conditions$varying$", names(boundary_conditions$varying[i]), "(t%%1)", sep="")))
-  }
-  
-  # 7.4) transport terms expressions
+  # 7.2) & 7.3) boundary conditions and transport term expressions
   transport_terms <- list()
+  boundaries <- list()
   for (species in species_operational) {
-    # varaibles name
-    var_name <- paste("tran", species$name, sep = "")
-    # transport terms differ for solids and solutes in general; also there is a special transport term for adsorbed phosphate
-    if (species$name == "adsorbed_P") {
-      # varaibles content:
-      # adsorbed_P is trasportated with FeOH3A, so FeOH3A's concentration and fluxes are used and corrected for the phosphate load
-      # if FeOH3A fluxes in the sediment at the upper boundary it is assumed, that no adsorbed phosphate comes in with it
-      # if FeOH3A fluxes in the sediment at the lower boundary it is assumed, that the incoming FeOH3 has a phosphate load equal the bottom sediment layer
-      # adsorbed phosphate can flux out of the sediment together with FeOH3A on both boundarys with phosphate load at top/bottom layer
-      #var_content <- "tran.1D(C=FeOH3A*phosphate_load_FeOH3A, flux.up=ifelse(tranFeOH3A$flux.up<0, tranFeOH3A$flux.up*phosphate_load_FeOH3A[1], 0), flux.down=ifelse(tranFeOH3A$flux.down>0, tranFeOH3A$flux.down*phosphate_load_FeOH3A, 0), D=grid_collection$Db.grid, v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)"
-      var_content <- "tran.1D(C=FeOH3A*phosphate_load_FeOH3A, flux.up=ifelse(tranFeOH3A$flux.up<0, tranFeOH3A$flux.up*phosphate_load_FeOH3A[1], 0), flux.down=tranFeOH3A$flux.down*phosphate_load_FeOH3A[N], D=grid_collection$Db.grid, v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)"
-      # store tranX-term as expression in "transpor_terms"-list ...
-      transport_terms[var_name] <- var_content
-    }
-    else if (species$phase == "solute") {
-      # varaibles content
-      var_content <- paste("tran.1D(C=", species$name, ", C.up=", species$name, "_top, D=grid_collection$D", species$name, ".grid, v=grid_collection$u.grid, VF=grid_collection$por.grid, dx=grid_collection$grid)",  sep = "")
+    # transport-term variable name
+    transport_name <- paste("tran", species$name, sep = "")
+    # get boundary conditions element
+    boundaries_temp <- boundary_conditions[[species$name]]
+    
+    if (species$phase == "solute") {
+      # upper boundary
+      if (exists("up", boundaries_temp)) {
+        # name of upper boundary condition for this solute (only fixed concentration implemented; described as numeric value or function)
+        up_name <- paste(species$name, "_up", sep="")
+        C.up <- up_name # used in transport term to reference the set boundary condition (fixed concentration)
+        # boundary described as numeric value?
+        if (is.numeric(boundaries_temp$up)) {
+          up_content <- boundaries_temp$up
+        }
+        else {  # boundary described as function (annual cycle or custom function)
+          up_content <- paste("boundary_conditions$", species$name, "$up(t)", sep="")
+        }
+        # store boundary condition upper boundary
+        boundaries[up_name] <- parse(text=paste(up_name, "<-", up_content))
+      }
+      else { # no concentration defined for upper boundary -> zero gradient as default in tran.1D
+        C.up <- paste(species$name, "[1]", sep="") # C[1]
+      }
+      # downstream boundary
+      if (exists("down", boundaries_temp)) {
+        # name of downstream boundary condition for this solute (only fixed concentration implemented; described as numeric value or function)
+        down_name <- paste(species$name, "_down", sep="")
+        C.down <- down_name # used in transport term to reference the set boundary condition (fixed concentration)
+        # boundary described as numeric value?
+        if (is.numeric(boundaries_temp$down)) {
+          down_content <- boundaries_temp$down
+        }
+        else {  # boundary described as function (annual cycle or custom function)
+          down_content <- paste("boundary_conditions$", species$name, "$down(t)", sep="")
+        }
+        # store boundary condition upper boundary
+        boundaries[down_name] <- parse(text=paste(down_name, "<-", down_content))
+      }
+      else { # no concentration defined for upper boundary -> zero gradient as default in tran.1D
+        C.down <- paste(species$name, "[length(", species$name, ")]", sep="") # C[length(C)]
+      }
+      # define transport term for solute species
+      # variable content
+      transport_content <- paste("tran.1D(C=", species$name, ", C.up=", C.up, ", C.down=", C.down, ", D=grid_collection$D", species$name, ".grid, v=grid_collection$u.grid, VF=grid_collection$por.grid, dx=grid_collection$grid)",  sep = "")
       # store tranX-term as text in "transpor_terms"-list ...
-      transport_terms[var_name] <- parse(text=paste(var_name, "<-", var_content))
+      transport_terms[transport_name] <- parse(text=paste(transport_name, "<-", transport_content))
     }
-    else if (species$phase == "solid") {
-      # varaibles content
-      var_content <- paste("tran.1D(C=", species$name, ", flux.up=F_", species$name, ", D=grid_collection$Db.grid", ", v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)",  sep = "")
-      # store tranX-term as expression in "transpor_terms"-list ...
-      transport_terms[var_name] <- parse(text=paste(var_name, "<-", var_content))
+    
+    if (species$phase == "solid") {
+      # upper boundary
+      if (exists("up", boundaries_temp)) {
+        # name of upper boundary condition for this solid (only fixed flux implemented; described as numeric value or function)
+        up_name <- paste(species$name, "_up", sep="")
+        flux.up <- up_name # used in transport term to reference the set boundary condition (fixed flux)
+        # boundary described as numeric value?
+        if (is.numeric(boundaries_temp$up)) {
+          up_content <- boundaries_temp$up
+        }
+        else {  # boundary described as function (annual cycle or custom function)
+          up_content <- paste("boundary_conditions$", species$name, "$up(t)", sep="")
+        }
+        # store boundary condition upper boundary
+        boundaries[up_name] <- parse(text=paste(up_name, "<-", up_content))
+      }
+      else { # no flux defined for upper boundary -> flux=NULL as default in tran.1D
+        flux.up <- "NULL"
+      }
+      # downstream boundary
+      if (exists("down", boundaries_temp)) {
+        # name of downstream boundary condition for this solid (only fixed flux implemented; described as numeric value or function)
+        down_name <- paste(species$name, "_down", sep="")
+        flux.down <- down_name # used in transport term to reference the set boundary condition (fixed concentration)
+        # boundary described as numeric value?
+        if (is.numeric(boundaries_temp$down)) {
+          down_content <- boundaries_temp$down
+        }
+        else {  # boundary described as function (annual cycle or custom function)
+          down_content <- paste("boundary_conditions$", species$name, "$down(t)", sep="")
+        }
+        # store boundary condition upper boundary
+        boundaries[down_name] <- parse(text=paste(down_name, "<-", down_content))
+      }
+      else { # no concentration defined for upper boundary -> zero gradient as default in tran.1D
+        flux.down <- "NULL"
+      }
+      # define transport term for solid species
+      # variable content
+      transport_content <- paste("tran.1D(C=", species$name, ", flux.up=", flux.up, ", flux.down=", flux.down, ", D=grid_collection$Db.grid", ", v=grid_collection$v.grid, VF=grid_collection$svf.grid, dx=grid_collection$grid)",  sep = "")
+      # store tranX-term as text in "transport_terms"-list ...
+      transport_terms[transport_name] <- parse(text=paste(transport_name, "<-", transport_content))
     }
   }
   
@@ -703,8 +775,7 @@ handlers$create_model_lists <- function(){
                            rate_equations,
                            reaction_terms,
                            solute_diffcoeffs,
-                           boundaries_constant,
-                           boundaries_varying,
+                           boundaries,
                            transport_terms,
                            total_c_change,
                            returnexpr)
@@ -731,8 +802,7 @@ handlers$create_model_lists <- function(){
   t_rate_equations      <- expr2textblock(rate_equations, "# rate equations")
   t_reaction_terms      <- expr2textblock(reaction_terms, "# reaction terms")
   t_solute_diffcoeffs   <- expr2textblock(solute_diffcoeffs, "# current diffusion coefficients")
-  t_boundaries_constant <- expr2textblock(boundaries_constant, "# constant boundary conditions")
-  t_boundaries_varying  <- expr2textblock(boundaries_varying, "# time varying boundary conditions")
+  t_boundaries          <- expr2textblock(boundaries, "# boundary conditions")
   t_transport_terms     <- expr2textblock(transport_terms, "# transport terms")
   t_total_c_change      <- expr2textblock(total_c_change, "# total change in concentration")
   t_returnexpr          <- expr2textblock(returnexpr, "# return statement")
@@ -746,8 +816,7 @@ handlers$create_model_lists <- function(){
                                  t_rate_equations,
                                  t_reaction_terms,
                                  t_solute_diffcoeffs,
-                                 t_boundaries_constant,
-                                 t_boundaries_varying,
+                                 t_boundaries,
                                  t_transport_terms,
                                  t_total_c_change,
                                  t_returnexpr,
@@ -757,9 +826,8 @@ handlers$create_model_lists <- function(){
   
   # return created lists (some for informational purpose, some for use)
   return(list(species_operational=species_operational, state=state, names_out=names_out, rate_constants=rate_constants, shared_reg_terms=shared_reg_terms,
-              rate_equations=rate_equations, reaction_terms=reaction_terms, boundaries_constant=boundaries_constant, boundaries_varying=boundaries_varying,
-              transport_terms=transport_terms, total_c_change=total_c_change, returnexpr=returnexpr, combined_expression=combined_expression,
-              t_combined_expression=t_combined_expression))
+              rate_equations=rate_equations, reaction_terms=reaction_terms, boundaries=boundaries, transport_terms=transport_terms, total_c_change=total_c_change,
+              returnexpr=returnexpr, combined_expression=combined_expression, t_combined_expression=t_combined_expression))
 }
 
 
