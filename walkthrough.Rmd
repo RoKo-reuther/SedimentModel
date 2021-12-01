@@ -393,7 +393,7 @@ observe(lapply({reac_vals$species_operational}, FUN= function(species) {
                               )
                             ),
                           # boundary specification
-                          column(8, style="border: 3px solid #82a4cf; border-radius:5px; height:400px; display: flex; align-items: center;", div(style="width:100%",
+                          column(8, style="height:400px; display: flex; align-items: center;", div(style="width:100%",
                               conditionalPanel("input.selec1_up == 'sv'",
                                    # numeric value
                                    conditionalPanel("input.selec2_up == 'v'",
@@ -421,9 +421,9 @@ observe(lapply({reac_vals$species_operational}, FUN= function(species) {
                                    conditionalPanel("input.selec2_up == 'cf'", style="position:relative; top:4px;",
                                           renderUI(
                                             if (boundary_up_type == "cf") {
-                                              aceEditor("bound_up_cf", paste(deparse(reac_vals$boundary_up), sep="\n"), height=370)}
+                                              aceEditor("bound_up_cf", mode = 'r', paste(deparse(reac_vals$boundary_up), sep="\n"), height=370)}
                                             else {
-                                              aceEditor("bound_up_cf", paste("function(t) {", "", "}", sep="\n"), height=370)}
+                                              aceEditor("bound_up_cf", mode = 'r', paste("function(t) {", "", "}", sep="\n"), height=370)}
                                             ))
                                    )
                               )
@@ -447,7 +447,7 @@ observe(lapply({reac_vals$species_operational}, FUN= function(species) {
                               )
                             ),
                           # boundary specification
-                          column(8, style="border: 3px solid #82a4cf; border-radius:5px; height:400px; display: flex; align-items: center;", div(style="width:100%",
+                          column(8, style="height:400px; display: flex; align-items: center;", div(style="width:100%",
                               conditionalPanel("input.selec1_down == 'sv'",
                                    # numeric value
                                    conditionalPanel("input.selec2_down == 'v'",
@@ -475,9 +475,9 @@ observe(lapply({reac_vals$species_operational}, FUN= function(species) {
                                    conditionalPanel("input.selec2_down == 'cf'", style="position:relative; top:4px;",
                                           renderUI(
                                             if (boundary_down_type == "cf") {
-                                              aceEditor("bound_down_cf", paste(deparse(reac_vals$boundary_down), sep="\n"), height=370)}
+                                              aceEditor("bound_down_cf", mode = 'r', paste(deparse(reac_vals$boundary_down), sep="\n"), height=370)}
                                             else {
-                                              aceEditor("bound_down_cf", paste("function(t) {", "", "}", sep="\n"), height=370)}
+                                              aceEditor("bound_down_cf", mode = 'r', paste("function(t) {", "", "}", sep="\n"), height=370)}
                                             ))
                                    )
                               )
@@ -485,7 +485,7 @@ observe(lapply({reac_vals$species_operational}, FUN= function(species) {
                           )
                         )
                       )
-                    }, footer = div(modalButton("Dismiss"), actionButton("apply_boundaries", "Apply changes",style="border-width:2px;"))
+                    }, footer = div(modalButton("Dismiss"), actionButton("apply_boundaries", "Apply changes",style="border-width:2px; border-color:#82a4cf;"))
                   )
                 )
     })
