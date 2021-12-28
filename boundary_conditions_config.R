@@ -10,9 +10,9 @@
 
 boundary_conditions <- list(
   
-  SO4    = list(up = 0.6, down = 1),
-  Fe_2   = list(up = 0, down = function(t){1+1}),
-  Mn_2   = list(down = 0.002),
+  SO4    = list(up = 0.6),
+  Fe_2   = list(up = 0),
+  Mn_2   = list(up = 0.002),
   H2S    = list(up = 0),
   CH4    = list(up = 0),
   PO4    = list(up = 0),
@@ -34,7 +34,7 @@ boundary_conditions <- list(
   MnCO3  = list(up = 0),
   FeOH3A = list(up = function(t){
                         t <- t%%1
-                        # set "standard value"; at least used for steady state solving
+                        # set "standard value"
                         flux <- 1
                         # vary flux with time: add 100 grams/m² Fe in february every year
                         # 100g Fe to mol = 1.79067 mol
