@@ -5,6 +5,9 @@ library(visNetwork)
 library(ggplot2)
 library(patchwork)
 library(stringr)
+library(data.table)
+library(dplyr)
+library(scales)
 library(shape)
 library(deSolve)
 library(rootSolve)
@@ -16,7 +19,7 @@ library(marelac)
 handlers <- list()
 
 
-## ---- set_configs -------------------------------------------------------------------------------
+## ---- set-configs -------------------------------------------------------------------------------
 configs <- list(
   parameters_config = "parameters_config.R",
   chemical_base_config = "chemical_base_config.R",
@@ -24,55 +27,39 @@ configs <- list(
 )
 
 
-## ---- source_parameters -------------------------------------------------------------------------
+## ---- annual-cycle ------------------------------------------------------------------------------
+handlers$annual_cycle <- function(csv.file, smoothing=0.5) {
+  # load in data
+  temp.data <- read.delim2(csv.file)
+  # "extrapolate" loaded partial one-year time series to get complete year cycle in spline
+  temp.time <- c(temp.data[["time"]]-1, temp.data[["time"]], temp.data[["time"]]+1)
+  temp.value <- rep(temp.data[["value"]], 3)
+  # evaluate the spline
+  temp.spline <- smooth.spline(temp.time, temp.value, spar = smoothing)
+  # set all negative values to zero
+  temp.spline$y[temp.spline$y < 0] = 0
+  # approximate function
+  approximated <- approxfun(temp.spline)
+  result <- function(t) {
+    # annual cycle
+    t <- t%%1
+    return(approximated(t))
+  }
+  return(result)
+}
+
+
+## ---- source-parameters-func --------------------------------------------------------------------
 handlers$parmslist <- function(){
   # source parameters_configuration file
   source(file=configs$parameters_config, local=TRUE)
-  
-  #create time sequence
-  times <- seq(0, tmax, by = tint)
-  
-  # create temperature function
-  # "extrapolate" loaded one-year time series to get complete year cycle in spline
-  temp.time <- c(temp.data[["time"]]-1, temp.data[["time"]], temp.data[["time"]]+1)
-  temp.value <- rep(temp.data[["temperature"]], 3)
-  # evaluate the spline
-  temp.spline <- smooth.spline(temp.time, temp.value)
-  # approximate a function with spline values
-  TC_func <- approxfun(temp.spline)
-  # # check spline
-  # plot(temp.value ~ temp.time)
-  # lines(temp.spline, col="blue")
-  
-  # pack needed parameters from configuration file to list
-  parameters <- list(
-    L = L,
-    N = N,
-    
-    por_shape = por_shape,
-    por.0 = por.0,
-    por.inf = por.inf,
-    
-    dens_dw = dens_dw,
-    S = S,
-    P = P,
-    v = v,
-    Db = Db,
-    Db_depth = Db_depth,
-    
-    CtoN = CtoN,
-    CtoP = CtoP,
-    
-    times = times,
-    TC_func = TC_func
-  )
-  
   return(parameters)
 }
+## ---- source-parameters-action ------------------------------------------------------------------
 parameters <- handlers$parmslist()
 
 
-## ---- chemical_lists ----------------------------------------------------------------------------
+## ---- chemical-lists-func -----------------------------------------------------------------------
 handlers$chemical_base_main <- function(specify=FALSE, reaction_list){
   # load parameters to function environment
   list2env(parameters, envir = rlang::current_env())
@@ -153,21 +140,27 @@ handlers$chemical_base_main <- function(specify=FALSE, reaction_list){
     }
   }
   
-  return(list(oc_reactions=occurring_reactions, oc_species=occurring_species, col_reactions=reactions_collection, col_species=species_collection, species_oper=species_operational))
+  # create operational reactions list (mainly for plotting reaction rates)
+  reactions_operational <- list()
+  for (reaction in occurring_reactions){
+    for (i in seq_along(reaction$reaction_rates$equations)){
+      name <- names(reaction$reaction_rates$equations)[i]
+      reactions_operational[[name]] <- list(name=name, unit=reaction$reaction_rates$u_unit)
+    }
+  }
+  
+  return(list(occurring_reactions=occurring_reactions, occurring_species=occurring_species, reactions_collection=reactions_collection,
+              species_collection=species_collection, species_operational=species_operational, reactions_operational=reactions_operational))
 }
+## ---- chemical-lists-action ---------------------------------------------------------------------
 chemical_lists <- handlers$chemical_base_main()
-occurring_reactions <- chemical_lists$oc_reactions
-occurring_species <- chemical_lists$oc_species
-reactions_collection <- chemical_lists$col_reactions
-species_collection <- chemical_lists$col_species
-species_operational <- chemical_lists$species_oper
-rm(chemical_lists)
 
 
-## ---- interactive_diagram -----------------------------------------------------------------------
-handlers$create_diagram <- function(){
+## ---- interactive-diagram-func ------------------------------------------------------------------
+handlers$create_diagram <- function(reactions_data = chemical_lists$occurring_reactions){
   # two data-frames ("nodes" and "links") are created, based on the "occurring_reactions"-list
   # these data-frames are needed to draw a diagram using the visNetwork-package
+  occurring_reactions <- reactions_data
   
   # create empty data frames
   nodes <- data.frame(id=c(), label=c(), title=c(), group=c(), name=c())
@@ -218,7 +211,7 @@ handlers$create_diagram <- function(){
   model_diagram <- visOptions(model_diagram,
                               width = 1920, height = 1080,
                               highlightNearest = list(enabled = TRUE, degree = list(from = 2, to = 2), algorithm = "hierarchical"),
-                              selectedBy = list(variable = "name", selected = "OM", highlight = TRUE, sort = FALSE)
+                              selectedBy = list(variable = "name", highlight = TRUE, sort = FALSE)
   )
   
   # set diagram layout (igraph layout)
@@ -247,12 +240,16 @@ handlers$create_diagram <- function(){
   
   return(model_diagram)
 }
+## ---- interactive-diagram-action ----------------------------------------------------------------
 model_diagram <- handlers$create_diagram()
 
 
-## ---- grid_setup --------------------------------------------------------------------------------
+## ---- grid-setup-func ---------------------------------------------------------------------------
 # create grid and attach parameters to grid
 handlers$grid_setup <- function(){
+  
+  occurring_species <- chemical_lists$occurring_species
+  
   # load environmental and grid parameters to function environment
   list2env(parameters, envir = rlang::current_env())
   
@@ -287,9 +284,9 @@ handlers$grid_setup <- function(){
   # approach:
   # diffusion coefficient for solutes: DX = Dmol.X + Db, where Dmol.X is the molecular diffusion coefficient calculated by diffcoeff-function of the marelac package ...
   # ... which is also corrected for tortuosity and adjusted for our time unit
-  # Dmol.X <- diffcoeff(S = S, t = TC, P = P, species = name_diffcoeff)[[name_diffcoeff]] * sectoyr/tort 
+  # Dmol.X <- diffcoeff(S = S, t = TC, P = P, species = name_diffcoeff)[[name_diffcoeff]] * timecorr/tort 
   # tort <- 1 - 2*log(por.0)  correction for tortuosity
-  # sectoyr <- 3600*24*365.25  conversion from s to yr; diffcoeff returns ionic diffusion coefficients in m2/s
+  # timecorr <- e.g. 3600*24*365.25  conversion from s to yr; diffcoeff returns ionic diffusion coefficients in m2/s
   
   # a) set dummy-grid-properties for solute species
   for (i in seq_along(occurring_species)){
@@ -313,9 +310,26 @@ handlers$grid_setup <- function(){
       solutes$D_names <-  c(solutes$D_names, paste("D", i$abbreviation, ".grid", sep = ""))
     }
   }
+  
   solutes$corr <- list()
-  solutes$corr$mid <- 3600*24*365.25/(1 - 2*log(por.grid$mid))
-  solutes$corr$int <- 3600*24*365.25/(1 - 2*log(por.grid$int))
+  if (time_unit == "a"){
+    time_corr <- 86400*365.25
+  }
+  else if (time_unit == "d"){
+    time_corr <- 86400
+  }
+  else if (time_unit == "h"){
+    time_corr <- 3600
+  }
+  else if (time_unit == "m"){
+    time_corr <- 60
+  }
+  else if (time_unit == "s"){
+    time_corr <- 1
+  }
+  
+  solutes$corr$mid <- time_corr/(1 - 2*log(por.grid$mid))
+  solutes$corr$int <- time_corr/(1 - 2*log(por.grid$int))
   
   solutes$func <- function(name, Dmol.X, corr=grid_collection$solutes$corr, Db=grid_collection$Db.grid){
     temp <- mapply(FUN = function(Dmol.X, corr, Db){Dmol.X * corr + Db}, Dmol.X, corr, Db)
@@ -328,54 +342,37 @@ handlers$grid_setup <- function(){
   grid_collection <- c(grid_collection, list(grid=grid, Db.grid=Db.grid, por.grid=por.grid, svf.grid=svf.grid, v.grid=v.grid, u.grid=u.grid, solutes=solutes))
   return(grid_collection)
 }
-
+## ---- grid-setup-action -------------------------------------------------------------------------
 grid_collection <- handlers$grid_setup()
 
 
-## ---- boundary_conditions -----------------------------------------------------------------------
-handlers$annual_cycle <- function(csv.file, smoothing=0.5) {
-  # load in data
-  temp.data <- read.delim2(csv.file)
-  # "extrapolate" loaded partial one-year time series to get complete year cycle in spline
-  temp.time <- c(temp.data[["time"]]-1, temp.data[["time"]], temp.data[["time"]]+1)
-  temp.value <- rep(temp.data[["value"]], 3)
-  # evaluate the spline
-  temp.spline <- smooth.spline(temp.time, temp.value, spar = smoothing)
-  # set all negative values to zero
-  temp.spline$y[temp.spline$y < 0] = 0
-  # approximate function
-  approximated <- approxfun(temp.spline)
-  result <- function(t) {
-    # annual cycle
-    t <- t%%1
-    return(approximated(t))
-  }
-  return(result)
-}
-
+## ---- boundary-conditions-func ------------------------------------------------------------------
 handlers$get_boundaries <- function(){
   source(file=configs$boundary_conditions_config, local=TRUE)
   return(boundary_conditions)
 }
+## ---- boundary-conditions-action ----------------------------------------------------------------
 boundary_conditions <- handlers$get_boundaries()
 
 
 ## ---- model-preparation-func --------------------------------------------------------------------
 handlers$create_model_lists <- function(){
   
-  # backup named species_collection list
-  species_collection_bak <- species_collection
+  occurring_species <- chemical_lists$occurring_species
+  occurring_reactions <- chemical_lists$occurring_reactions
+  species_operational <- chemical_lists$species_operational
+  
   # load parameters to function env
   list2env(parameters, envir = rlang::current_env())
   # get shared reaction constants, shared regulation terms ...
   source(file=configs$chemical_base_config, local=TRUE)
   # overwrite loaded but unnamed species_collection list
-  species_collection <- species_collection_bak
+  species_collection <- chemical_lists$species_collection
   
   # table of contents
   # 1) ...removed...
   # 2) state vector (needed as function argument)
-  # 3) used to label steady-state output; in ode.1D it is used for plotting
+  # 3) names_out vector (used to label steady-state output; in ode.1D it is used for plotting)
   # 4.1) state variable assignment expressions
   # 4.2) inactive species variable assignment expressions
   # 5) temperature expression
@@ -532,7 +529,9 @@ handlers$create_model_lists <- function(){
           rate_name <- names(temp_reaction$reaction_rates$equations[i])
           reaction_name <- occurring_reactions[[element]]$name
           u_unit <- temp_reaction$reaction_rates$u_unit
-          species_operational[[species$name]]$involved_in_rates[[rate_name]] <- list(rate_name=rate_name, reaction_name=reaction_name, sign=algebraic_sign, u_unit=u_unit)
+          chemical_lists$species_operational[[species$name]]$involved_in_rates[[rate_name]] <<- list(rate_name=rate_name,
+                                                                                                     reaction_name=reaction_name,
+                                                                                                     sign=algebraic_sign, u_unit=u_unit)
           # rate name for reaction terms
           rr_temp <- paste("+", names(temp_reaction$reaction_rates$equations[i]), sep = "")
           reaction_rates <- paste(reaction_rates, rr_temp)
@@ -564,7 +563,7 @@ handlers$create_model_lists <- function(){
             rate_name <- names(reaction_names[i])
             reaction_name <- occurring_reactions[[element]]$name
             u_unit <- temp_reaction$reaction_rates$u_unit
-            species_operational[[species$name]]$involved_in_rates[[rate_name]] <- list(rate_name=rate_name, reaction_name=reaction_name, sign=algebraic_sign, u_unit=u_unit)
+            chemical_lists$species_operational[[species$name]]$involved_in_rates[[rate_name]] <<- list(rate_name=rate_name, reaction_name=reaction_name, sign=algebraic_sign, u_unit=u_unit)
             # rate name for reaction terms
             rr_temp <- paste("+", names(reaction_names[i]), sep = "")
             reaction_rates <- paste(reaction_rates, rr_temp)
@@ -787,7 +786,7 @@ handlers$create_model_lists <- function(){
   expr2textblock <- function(myexpr, headercomment) {
     result <- headercomment
     for (i in myexpr) {
-      result <- paste(result, paste(deparse(i, width.cutoff = 60), collapse = "\n"), sep = "\n")
+      result <- paste(result, paste(deparse(i, width.cutoff = 55), collapse = "\n"), sep = "\n")
     }
     result <- paste(result, "", sep = "\n")
     return(result)
@@ -825,23 +824,21 @@ handlers$create_model_lists <- function(){
   
   
   # return created lists (some for informational purpose, some for use)
-  return(list(species_operational=species_operational, state=state, names_out=names_out, rate_constants=rate_constants, shared_reg_terms=shared_reg_terms,
+  return(list(state=state, names_out=names_out, rate_constants=rate_constants, shared_reg_terms=shared_reg_terms,
               rate_equations=rate_equations, reaction_terms=reaction_terms, boundaries=boundaries, transport_terms=transport_terms, total_c_change=total_c_change,
               returnexpr=returnexpr, combined_expression=combined_expression, t_combined_expression=t_combined_expression))
 }
-
-
 ## ---- model-preparation-action ------------------------------------------------------------------
 model_lists <- handlers$create_model_lists()
 
 
-## ---- model_function ----------------------------------------------------------------------------
+## ---- model-function ----------------------------------------------------------------------------
 Model <- function(t, state, pars) {
   eval(model_lists$combined_expression)
 }
 
 
-## ---- steady_state_solving ----------------------------------------------------------------------
+## ---- steady-state-solving ----------------------------------------------------------------------
 ss <- steady.1D(y = model_lists$state,
                 time = 0.2,
                 func = Model, 
@@ -853,6 +850,235 @@ ss <- steady.1D(y = model_lists$state,
 )
 
 
+## ---- ss2trans-func -----------------------------------------------------------------------------
+handlers$extract_ss <- function(){
+  # Assign steady state solution values to new named vector as input for transient model
+  # data has to be in one column for all state variables in same sequence as in "names_out" (= as in "species_operational" = as in first vector of "returnlist")
+  da_ss <- c()
+  for (specie in model_lists$names_out){
+    to_add <- ss$y[, specie]
+    #names(to_add) <- rep(specie, N)
+    da_ss <- c(da_ss, to_add)
+  }
+  return(da_ss)
+}
+## ---- ss2trans-action ---------------------------------------------------------------------------
+trans_input <- handlers$extract_ss()
+
+
+## ---- transient-solving -------------------------------------------------------------------------
+trans <- ode.1D(y = trans_input, 
+                time = parameters$times, 
+                func = Model, 
+                parms = NULL, 
+                names = model_lists$names_out,
+                #method = "lsoda", 
+                #verbose = TRUE, 
+                nspec = length(model_lists$names_out),
+                dimens = parameters$N
+                #,rtol = 1e-7, atol = 1e-6
+)
+
+
+## ---- trans-data-processing-func ----------------------------------------------------------------
+# transform transient results to ggplot-usable dataframe
+handlers$get_trans_df <- function(trans_data=trans, t_unit=parameters$time_unit){
+  
+  species_operational <- chemical_lists$species_operational
+  reactions_operational <- chemical_lists$reactions_operational
+  
+  trans_attr <- attributes(trans_data)
+  nspec <- trans_attr$nspec # number of species
+  dimens <- trans_attr$dimens # N
+  ntimesteps <- trans_attr$dim[1]
+  timesteps <- parameters$times
+  species_names <- trans_attr$ynames
+  
+  # exclude "r" and "q" conversion factors
+  q_and_r <- str_detect(colnames(trans_data), "reaction_terms.r") | str_detect(colnames(trans_data), "reaction_terms.q")
+  trans_data <- trans_data[, !q_and_r]
+  # melt to long df (columns: time, variable, value)
+  trans.df <- melt(as.data.table(as.matrix(trans_data)), id='time')
+  
+  # add columns: name, group, depth, grid
+  trans.df <- cbind(trans.df, name=NULL, group=NULL, depth=NULL, value_corr=NULL)
+  
+  # species entries
+  # volume correction factors: convert mol/m³_sf /mol/m³_pw to mol/m³ (total volume)
+  pw_to_t <- grid_collection$por.grid$mid
+  sf_to_t <- grid_collection$svf.grid$mid
+  corr <- species_names %>%
+    lapply(function(x) {ifelse(species_operational[[x]]$phase == "solute", expr(pw_to_t), expr(sf_to_t))}) %>%
+    lapply(eval.parent) %>%
+    unlist() %>%
+    rep(each=ntimesteps)
+  
+  # actual entries
+  trans.df[1:(ntimesteps*dimens*nspec), "name"]       <- rep(species_names, each=ntimesteps*dimens)
+  trans.df[1:(ntimesteps*dimens*nspec), "group"]      <- "species"
+  trans.df[1:(ntimesteps*dimens*nspec), "depth"]      <- rep(rep(grid_collection$grid$x.mid, each=ntimesteps), nspec)
+  trans.df[1:(ntimesteps*dimens*nspec), "value"]      <- pmax(trans.df$value[1:(ntimesteps*dimens*nspec)], 0) # set negative values for concentrations to zero
+  trans.df[1:(ntimesteps*dimens*nspec), "value_corr"] <- trans.df$value[1:(ntimesteps*dimens*nspec)] * corr
+  
+  # others ...
+  pointer <- ntimesteps*dimens*nspec + 1 # points to current row: first row after species
+  initial_length <- nrow(trans.df)
+  
+  while (pointer < initial_length) {
+    current_var <- as.character(trans.df$variable[pointer])
+    
+    if (str_starts(current_var, "fluxes.")){  # fluxes (special: no depth)
+      # little check
+      if ({
+        assumed_end  <- pointer+ntimesteps-1   # assume this is a sequence of related entries for every timestep
+        check_names  <- trans.df$variable[pointer:assumed_end] == current_var # check, if the following variables fit assumptions
+        all(check_names)
+      }){
+        trans.df[pointer:assumed_end, "name"]  <- str_split(current_var, "[.]")[[1]][2]
+        trans.df[pointer:assumed_end, "group"] <- str_split(current_var, "[.]")[[1]][1]
+        pointer <- assumed_end + 1
+      }
+      else {
+        pointer <- pointer + 1 
+      }
+    }
+    else {   # rest
+      
+      if ({ # sequence length: ntimesteps*dimens ?
+        assumed_name <- str_sub(current_var, end=-2) # assume e.g. reaction_rates.R1_a1 -> reaction_rates.R1_a
+        assumed_end  <- pointer+ntimesteps*dimens-1   # assume this is a sequence of related entries for every timestep and depth
+        check_names  <- str_detect(trans.df$variable[pointer:assumed_end], assumed_name) # check, if the following variables fit assumptions
+        all(check_names)
+      }){
+        trans.df[pointer:assumed_end, "name"]  <- str_split(assumed_name, "[.]")[[1]][2]
+        trans.df[pointer:assumed_end, "group"] <- str_split(assumed_name, "[.]")[[1]][1]
+        trans.df[pointer:assumed_end, "depth"] <- rep(grid_collection$grid$x.mid, each=ntimesteps)
+        # correction for volume phase differs for different groups
+        if (str_split(assumed_name, "[.]")[[1]][1] == "reaction_rates") { # reaction rates
+          # get reaction rate unit from "reactions_operational" list
+          reaction_unit <- reactions_operational[[str_split(assumed_name, "[.]")[[1]][2]]]$unit
+          if (reaction_unit == "mol/V_pw/y"){
+            corr <- rep(grid_collection$por.grid$mid, each=ntimesteps)
+          }
+          else if (reaction_unit == "mol/V_sf/y"){
+            corr <- rep(grid_collection$svf.grid$mid, each=ntimesteps)
+          }
+        }
+        else if (str_split(assumed_name, "[.]")[[1]][1] == "reaction_terms") { # reaction terms
+          # extract species name and get phase from "species_operational" list
+          species_name <- str_sub(str_split(assumed_name, "[.]")[[1]][2], start = 2)
+          if (species_operational[[species_name]]$phase == "solute"){
+            corr <- rep(grid_collection$por.grid$mid, each=ntimesteps)
+          }
+          else if (species_operational[[species_name]]$phase == "solid"){
+            corr <- rep(grid_collection$svf.grid$mid, each=ntimesteps)
+          }
+        }
+        else if (str_split(assumed_name, "[.]")[[1]][1] == "transport") { # transport terms
+          # extract species name and get phase from "species_operational" list
+          species_name <- str_split(assumed_name, "trandC_")[[1]][2]
+          if (species_operational[[species_name]]$phase == "solute"){
+            corr <- rep(grid_collection$por.grid$mid, each=ntimesteps)
+          }
+          else if (species_operational[[species_name]]$phase == "solid"){
+            corr <- rep(grid_collection$svf.grid$mid, each=ntimesteps)
+          }
+        }
+        else {corr <- NA}
+        trans.df[pointer:assumed_end, "value_corr"] <- trans.df$value[pointer:assumed_end] * corr
+        pointer <- assumed_end + 1
+      }
+      
+      else if ({ # sequence length: ntimesteps ? -> depth constant value; variable name will be constant, e.g. reaction_terms.ROrgCC
+        assumed_end  <- pointer+ntimesteps-1   # assume this is a sequence of related entries for every timestep
+        check_names  <- str_detect(trans.df$variable[pointer:assumed_end], current_var) # check, if the following variables fit assumptions
+        all(check_names)
+      }){
+        # determine type -> check if and which volume correction is needed
+        if (str_split(current_var, "[.]")[[1]][1] == "reaction_rates") { # reaction rates
+          # get reaction rate unit from "reactions_operational" list
+          reaction_unit <- reactions_operational[[str_split(current_var, "[.]")[[1]][2]]]$unit
+          if (reaction_unit == "mol/V_pw/y"){
+            corr <- rep(grid_collection$por.grid$mid, each=ntimesteps)
+          }
+          else if (reaction_unit == "mol/V_sf/y"){
+            corr <- rep(grid_collection$svf.grid$mid, each=ntimesteps)
+          }
+        }
+        else if (str_split(current_var, "[.]")[[1]][1] == "reaction_terms") { # reaction terms
+          # extract species name and get phase from "species_operational" list
+          species_name <- str_sub(str_split(current_var, "[.]")[[1]][2], start = 2)
+          if (species_operational[[species_name]]$phase == "solute"){
+            corr <- rep(grid_collection$por.grid$mid, each=ntimesteps)
+          }
+          else if (species_operational[[species_name]]$phase == "solid"){
+            corr <- rep(grid_collection$svf.grid$mid, each=ntimesteps)
+          }
+        }
+        else if (str_split(current_var, "[.]")[[1]][1] == "transport") { # transport terms
+          # extract species name and get phase from "species_operational" list
+          species_name <- str_split(current_var, "trandC_")[[1]][2]
+          if (species_operational[[species_name]]$phase == "solute"){
+            corr <- rep(grid_collection$por.grid$mid, each=ntimesteps)
+          }
+          else if (species_operational[[species_name]]$phase == "solid"){
+            corr <- rep(grid_collection$svf.grid$mid, each=ntimesteps)
+          }
+        }
+        else {corr <- rep(NA, ntimesteps*dimens)}
+        
+        # expand value over all depth levels for every timestep
+        # a) fill existing entries for depth-level 1
+        trans.df[pointer:assumed_end, "name"]  <- str_split(current_var, "[.]")[[1]][2]
+        trans.df[pointer:assumed_end, "group"] <- str_split(current_var, "[.]")[[1]][1]
+        trans.df[pointer:assumed_end, "depth"] <- grid_collection$grid$x.mid[1]
+        trans.df[pointer:assumed_end, "value_corr"] <- trans.df$value[pointer:assumed_end] * corr[1:ntimesteps]
+        # b) add rows for other depth levels
+        temp.df <- data.frame(
+          time = rep(timesteps, dimens-1),
+          variable = current_var,
+          value = rep(trans.df$value[pointer:assumed_end], dimens-1),
+          name =  str_split(current_var, "[.]")[[1]][2],
+          group = str_split(current_var, "[.]")[[1]][1],
+          depth = rep(grid_collection$grid$x.mid[-1], each=ntimesteps),
+          value_corr = rep(trans.df$value[pointer:assumed_end], dimens-1) * corr[(ntimesteps+1):length(corr)]
+        )
+        trans.df <- rbind(trans.df, temp.df)
+        pointer <- assumed_end + 1
+      }
+      
+      else {
+        pointer <- pointer + 1
+      }
+    }
+  }
+  
+  # add datetime column
+  if (t_unit == "a"){
+    time_corr <- 86400*365.25
+  }
+  else if (t_unit == "d"){
+    time_corr <- 86400
+  }
+  else if (t_unit == "h"){
+    time_corr <- 3600
+  }
+  else if (t_unit == "m"){
+    time_corr <- 60
+  }
+  else if (t_unit == "s"){
+    time_corr <- 1
+  }
+  trans.df <- trans.df %>%
+    mutate(datetime = as.POSIXct(time*time_corr, origin="0000-01-01", tz="GMT"))
+  
+  trans.df <- trans.df[with(trans.df, order(group, name, time, depth)),]
+  return(trans.df)
+}
+## ---- trans-data-processing-action --------------------------------------------------------------
+trans.df <- handlers$get_trans_df()
+
+
 ## ---- plots -------------------------------------------------------------------------------------
 # draw concentration profiles for species for steady state solution
 handlers$concentration_profiles_ss <- function(species=NULL, draw_mode="facet_wrap", ss_data=ss, v_correction=TRUE){
@@ -860,15 +1086,17 @@ handlers$concentration_profiles_ss <- function(species=NULL, draw_mode="facet_wr
   # draw_mode: either "facet_wrap", "collective"
   # v_correction: convert mol/m³_sf /mol/m³_pw to mol/m³ (total volume)
   
+  species_operational <- chemical_lists$species_operational
+  
   # create complete concentrations data-frame 
   df.ss_cs <- data.frame(
-    depth = rep(grid_collection$grid$x.mid, length(model_lists$species_operational)),
+    depth = rep(grid_collection$grid$x.mid, length(species_operational)),
     concentration = c(ss_data$y),
     species = rep(attributes(ss_data$y)$dimnames[[2]], each=parameters$N))
   
   # correct for solid volume fraction/porosity by default -> get all concentrations in mol/m³ total volume
   if (v_correction){
-    for (element in model_lists$species_operational){
+    for (element in species_operational){
       if (element$phase == "solute"){
         df.ss_cs[df.ss_cs$species == element$name, "concentration"] <- df.ss_cs[df.ss_cs$species == element$name, "concentration"] * grid_collection$por.grid$mid
       }
@@ -915,20 +1143,13 @@ handlers$rate_profiles_ss <- function(rates=NULL, draw_mode = "facet_wrap", ss_d
   # reactions: vector of reaction rates to draw profile in the form c("reaction1", "reaction2")
   # draw_mode: either "facet_wrap", "collective"
   
+  reactions_operational <- chemical_lists$reactions_operational
+  
   # create complete reaction rates data-frame 
   df.ss_rr <- data.frame(
     depth = rep(grid_collection$grid$x.mid, length(ss_data$reaction_rates)),
     rates = unlist(ss_data$reaction_rates),
     ratename = rep(names(ss_data$reaction_rates), each=parameters$N))
-  
-  # create operational reactions list (mainly for plotting reaction rates)
-  reactions_operational <- list()
-  for (reaction in occurring_reactions){
-    for (i in seq_along(reaction$reaction_rates$equations)){
-      name <- names(reaction$reaction_rates$equations)[i]
-      reactions_operational[[name]] <- list(name=name, unit=reaction$reaction_rates$u_unit)
-    }
-  }
   
   # correct for solid volume fraction/porosity -> get all reaction rates in mol/m³/y total volume
   for (element in reactions_operational){
@@ -972,9 +1193,11 @@ handlers$rate_profiles_ss <- function(rates=NULL, draw_mode = "facet_wrap", ss_d
 handlers$combined_profiles_ss <- function(species=NULL, ss_data=ss){
   # species: vector of species to draw combined profiles in the form c("species1", "species2")
   
+  species_operational <- chemical_lists$species_operational
+  
   # select all occurring species if species-argument is NULL
   if (is.null(species)) {
-    species <- names(model_lists$species_operational)
+    species <- names(species_operational)
   }
   
   df.collection <- list()
@@ -982,9 +1205,9 @@ handlers$combined_profiles_ss <- function(species=NULL, ss_data=ss){
   for (element in species){
     
     # if species is involved in reactions: create subdataframe for reactions and transport
-    if (length(model_lists$species_operational[[element]]$involved_in_rates) != 0){
+    if (length(species_operational[[element]]$involved_in_rates) != 0){
       # sub-dataframe reaction rates
-      rates.dflist <-lapply(model_lists$species_operational[[element]]$involved_in_rates, function(x) { # list of dataframes for each single reaction rate
+      rates.dflist <-lapply(species_operational[[element]]$involved_in_rates, function(x) { # list of dataframes for each single reaction rate
         data.frame(
           depth = grid_collection$grid$x.mid,
           value = ss_data$reaction_rates[[x$rate_name]] * ifelse(x$sign == "+", 1, -1) * ifelse(x$u_unit == "mol/V_pw/y", grid_collection$por.grid$mid, grid_collection$svf.grid$mid),
@@ -1033,4 +1256,317 @@ handlers$combined_profiles_ss <- function(species=NULL, ss_data=ss){
   })
   # wrap plots together
   wrap_plots(plotlist, ncol = 1)
+}
+
+# assume appropriate timescale and date_breaks for transient plots "assume transplot scale"
+handlers$ats <- function(trans_data){
+  
+  if (parameters$time_unit == "a"){
+    if (max(trans_data$time) - min(trans_data$time) <= 1){
+      # interval is one year or less
+      timescale = "%b"
+      date_breaks = "months"
+      date_minor_breaks = waiver()
+    }
+    else if (max(trans_data$time) - min(trans_data$time) <= 2){
+      # interval is more than one year but maximum two years
+      timescale = "%b\n(%y)"
+      date_breaks = "months"
+      date_minor_breaks = waiver()
+    }
+    else {
+      # interval is more than than 2 years
+      timescale = "%y"
+      date_breaks = "years"
+      date_minor_breaks = "months"
+    }
+  }
+  
+  if (parameters$time_unit == "d"){
+    if (max(trans_data$time) - min(trans_data$time) <= 1){
+      # interval is one day or less
+      timescale = "%H"
+      date_breaks = "hours"
+      date_minor_breaks = waiver()
+    }
+    else if (max(trans_data$time) - min(trans_data$time) < 31) {
+      # interval is more than two days but less than 31
+      timescale = "%d"
+      date_breaks = "days"
+      date_minor_breaks = "hours"
+    }
+    else {
+      # interval is more than than 31 days
+      timescale = "%b"
+      date_breaks = "months"
+      date_minor_breaks = "days"
+    }
+  }
+  
+  if (parameters$time_unit == "h"){
+    if (max(trans_data$time) - min(trans_data$time) <= 0.5){
+      # interval is half an hour or less
+      timescale = "%M"
+      date_breaks = "mins"
+      date_minor_breaks = waiver()
+    }
+    else if (max(trans_data$time) - min(trans_data$time) <= 30){
+      # interval is 1 to 30 hours
+      timescale = "%H"
+      date_breaks = "hours"
+      date_minor_breaks = "mins"
+    }
+    else {
+      # interval is more than 30 hours
+      timescale = "%d"
+      date_breaks = "days"
+      date_minor_breaks = "hours"
+    }
+  }
+  
+  if (parameters$time_unit == "m"){
+    if (max(trans_data$time) - min(trans_data$time) <= 0.5){
+      # interval is half a minute or less
+      timescale = "%S"
+      date_breaks = "secs"
+      date_minor_breaks = waiver()
+    }
+    else if (max(trans_data$time) - min(trans_data$time) <= 30){
+      # interval is 1 to 30 minutes
+      timescale = "%M"
+      date_breaks = "mins"
+      date_minor_breaks = "secs"
+    }
+    else {
+      # interval is more than 30 minutes
+      timescale = "%H"
+      date_breaks = "hours"
+      date_minor_breaks = "mins"
+    }
+  }
+  
+  if (parameters$time_unit == "s"){
+    if (max(trans_data$time) - min(trans_data$time) <= 30){
+      # interval is half a minute or less
+      timescale = "%S"
+      date_breaks = "secs"
+      date_minor_breaks = waiver()
+    }
+    else {
+      # intervall is more than half a minute
+      timescale = "%M"
+      date_breaks = "mins"
+      date_minor_breaks = "secs"
+    }
+  }
+  
+  return(list(ts=timescale, db=date_breaks, dmb=date_minor_breaks))
+}
+
+# draw concentration rasters for species for transient solution
+handlers$concentration_rasters_trans <- function(species=NULL,
+                                                 trans_data=trans.df,
+                                                 v_correction=TRUE,
+                                                 timescale=handlers$ats(trans_data)$ts,
+                                                 date_breaks=handlers$ats(trans_data)$db,
+                                                 date_minor_breaks=handlers$ats(trans_data)$dmb){
+  # species: vector of species to draw concentration rasters in the form c("species1", "species2")
+  # v_correction: convert mol/m³_sf /mol/m³_pw to mol/m³ (total volume)
+  # timescale: see strptime() for formats
+  # date_breaks: one of “secs”, “mins”, “hours”, “days”, “months”, “years”
+  # date_minor_breaks: one of “secs”, “mins”, “hours”, “days”, “months”, “years”
+  
+  species_operational <- chemical_lists$species_operational
+  
+  # get subset-collection for requested species
+  if (is.null(species)) {species <- attributes(species_operational)$names} # select all species, if not specified
+  subset_collection <- lapply(species, function(x) trans_data[name == x])
+  
+  # plots
+  if (v_correction){
+    # apply ggplot function and write to list
+    plotlist = lapply(subset_collection, function(x) {
+      ggplot(x, mapping = aes(datetime, depth, fill=value_corr)) + 
+        geom_raster(alpha = 0.6, hjust = 1) +
+        scale_y_continuous(name = "depth (m)", trans = "reverse", expand=c(0,0)) +
+        scale_x_datetime(name = paste("time (", date_breaks, ")", sep=""), date_labels = timescale, expand=c(0,0),
+                         breaks = seq.POSIXt(from = round.POSIXt(min(trans_data$datetime), units = date_breaks),
+                                             to = round.POSIXt(max(trans_data$datetime), units = date_breaks), by= date_breaks),
+                         date_minor_breaks = date_minor_breaks) +
+        facet_wrap(~name, ncol = 1) +
+        theme_light() +
+        theme(strip.text.x = element_text(colour = "black"),
+              axis.title = element_text(size = 13),
+              panel.grid.major.x = element_line(size=0.7),
+              panel.grid.major.y = element_line(size=0.7)) +
+        scale_fill_distiller(name = "concentration\n(mol/m³)", palette=4, direction=-1, trans = as.trans(pseudo_log_trans(sigma = 0.1, base=exp(1))))
+    })
+  }
+  else {
+    # apply ggplot function and write to list
+    plotlist = lapply(subset_collection, function(x) {
+      ggplot(x, mapping = aes(datetime, depth, fill=value)) + 
+        geom_raster(alpha = 0.6, hjust = 1) +
+        scale_y_continuous(name = "depth (m)", trans = "reverse", expand=c(0,0)) +
+        scale_x_datetime(name = paste("time (", date_breaks, ")", sep=""), date_labels = timescale, expand=c(0,0),
+                         breaks = seq.POSIXt(from = round.POSIXt(min(trans_data$datetime), units = date_breaks),
+                                             to = round.POSIXt(max(trans_data$datetime), units = date_breaks), by= date_breaks),
+                         date_minor_breaks = date_minor_breaks) +
+        facet_wrap(~name, ncol = 1) +
+        theme_light() +
+        theme(strip.text.x = element_text(colour = "black"),
+              axis.title = element_text(size = 13),
+              panel.grid.major.x = element_line(size=0.7),
+              panel.grid.major.y = element_line(size=0.7)) +
+        scale_fill_distiller(name = "concentration (mol/m³_pw // mol/m³_sf)", palette=4, direction=-1, trans = as.trans(pseudo_log_trans(sigma = 0.1, base=exp(1))))
+    })
+  }
+  
+  # wrap plots together
+  wrap_plots(plotlist, ncol = 1)
+}
+
+# draw reaction rate rasters for transient solution
+handlers$rate_rasters_trans <- function(rates=NULL,
+                                        trans_data=trans.df,
+                                        timescale=handlers$ats(trans_data)$ts,
+                                        date_breaks=handlers$ats(trans_data)$db,
+                                        date_minor_breaks=handlers$ats(trans_data)$dmb){
+  # rates: vector of reaction rates to draw
+  # v_correction: convert mol/m³_sf /mol/m³_pw to mol/m³ (total volume)
+  # timescale: see strptime() for formats
+  # date_breaks: one of “secs”, “mins”, “hours”, “days”, “months”, “years”
+  # date_minor_breaks: one of “secs”, “mins”, “hours”, “days”, “months”, “years”
+  
+  reactions_operational <- chemical_lists$reactions_operational
+  
+  # get subset-collection for requested reaction rates
+  if (is.null(rates)) {rates <- attributes(reactions_operational)$names} # select all reactions, if not specified
+  subset_collection <- lapply(rates, function(x) trans_data[name == x])
+  
+  # apply ggplot function and write to list
+  plotlist = lapply(subset_collection, function(x) {
+    ggplot(x, mapping = aes(datetime, depth, fill=value_corr)) + 
+      geom_raster(alpha = 0.6, hjust = 1) +
+      scale_y_continuous(name = "depth (m)", trans = "reverse", expand=c(0,0)) +
+      scale_x_datetime(name = paste("time (", date_breaks, ")", sep=""), date_labels = timescale, expand=c(0,0),
+                       breaks = seq.POSIXt(from = round.POSIXt(min(trans_data$datetime), units = date_breaks),
+                                           to = round.POSIXt(max(trans_data$datetime), units = date_breaks), by= date_breaks),
+                       date_minor_breaks = date_minor_breaks) +
+      facet_wrap(~name, ncol = 1) +
+      theme_light() +
+      theme(strip.text.x = element_text(colour = "black"),
+            axis.title = element_text(size = 13),
+            panel.grid.major.x = element_line(size=0.7),
+            panel.grid.major.y = element_line(size=0.7)) +
+      scale_fill_distiller(name = paste("rate (mol/m³/", parameters$time_unit, ")", sep=""), palette=4, direction=-1)
+  })
+  
+  # wrap plots together
+  wrap_plots(plotlist, ncol = 1)
+}
+
+# draw combined plot: species specific reaction rates + transport in facet wrap
+handlers$combined_rasters_trans <- function(species,
+                                             trans_data=trans.df,
+                                             plot_type="both",
+                                             timescale=handlers$ats(trans_data)$ts,
+                                             date_breaks=handlers$ats(trans_data)$db,
+                                             date_minor_breaks=handlers$ats(trans_data)$dmb){
+  # species: species name to draw combined profiles
+  # plot_type: a) "individual": own plot for each process; b) "dominant": plot showing the dominant process; c) "both"
+  # timescale: see strptime() for formats
+  # date_breaks: one of “secs”, “mins”, “hours”, “days”, “months”, “years”
+  # date_minor_breaks: one of “secs”, “mins”, “hours”, “days”, “months”, “years”
+  
+  species_operational <- chemical_lists$species_operational
+  
+  # 1) extract reaction rates
+  # names of reactions this species is involved in
+  rates <- species_operational[[species]]$involved_in_rates
+  # get reaction rate entries
+  df.rates <- trans_data[name %in% attributes(rates)$names]
+  # producing or consuming reaction? -> information stored in rates$X$sign
+  df.rates %<>%
+    group_by(name)%>%
+    mutate(value_corr=value_corr*ifelse(unlist(rates)[paste(name, ".sign", sep="")] == "+", +1, -1)) %>%
+    mutate(name=paste(unlist(rates)[paste(name, ".reaction_name", sep="")], " (", name, ")", sep="")) %>%
+    ungroup()
+  
+  # 2) extract transport entries
+  # name of transport entries for this species e.g. trandC_OrgCA
+  transport <- paste("trandC_", species, sep="")
+  df.transport <- trans_data[name == transport]
+  
+  # 3) join sub-dataframes
+  df.joined <- rbind(df.rates, df.transport)
+  
+  # plot "individual"
+  if (plot_type == "individual" || plot_type == "both"){
+    
+    # calculate percentage
+    df.individual <- df.joined%>%
+      group_by(time, depth)%>%
+      mutate(percentage=(value_corr/sum(abs(value_corr)))*100)
+    df.individual$percentage[is.na(df.individual$percentage)] <- 0 # set NA values 0
+    
+    individual <-   ggplot(df.individual, mapping = aes(datetime, depth, fill = percentage)) + 
+      geom_raster(alpha = 0.6, hjust = 1) +
+      scale_y_continuous(name = "depth (m)", trans = "reverse", expand=c(0,0)) +
+      scale_x_datetime(name = paste("time (", date_breaks, ")", sep=""), date_labels = timescale, expand=c(0,0),
+                       breaks = seq.POSIXt(from = round.POSIXt(min(trans_data$datetime), units = date_breaks),
+                                           to = round.POSIXt(max(trans_data$datetime), units = date_breaks), by= date_breaks),
+                       date_minor_breaks = date_minor_breaks) +
+      facet_wrap(~name, ncol = 1) +
+      theme_light() +
+      theme(strip.text.x = element_text(colour = "black"),
+            axis.title = element_text(size = 13),
+            panel.grid.major.x = element_line(size=0.7),
+            panel.grid.major.y = element_line(size=0.7)) +
+      scale_fill_gradient2(name = "% change in\nconcentration",
+                           low = "#A5514F", 
+                           high = "#005688", 
+                           mid = "white",
+                           midpoint = 0,
+                           limits = c(-100, 100))
+  }
+  # plot "dominant"
+  if (plot_type == "dominant" || plot_type == "both"){
+    
+    # determine dominant process
+    df.dominant <- df.joined%>%
+      group_by(time, depth)%>%
+      mutate(dominant=ifelse(max(abs(value_corr)) == 0, NA, paste(name[which.max(abs(value_corr))])))
+    df.dominant[, c("time", "variable", "value", "name", "group", "value_corr")] <- NULL  # remove unused columns
+    df.dominant <- unique(df.dominant) # only keep unique entries
+    df.dominant <- df.dominant[!is.na(df.dominant$dominant), ] # remove NA rows
+    
+    dominant <- ggplot(df.dominant, mapping = aes(datetime, depth, fill = dominant)) + 
+      geom_raster(alpha = 0.6, hjust = 1) +
+      scale_y_continuous(name = "depth (m)", trans = "reverse", expand=c(0,0)) +
+      scale_x_datetime(name = paste("time (", date_breaks, ")", sep=""), date_labels = timescale, expand=c(0,0),
+                       breaks = seq.POSIXt(from = round.POSIXt(min(trans_data$datetime), units = date_breaks),
+                                           to = round.POSIXt(max(trans_data$datetime), units = date_breaks), by= date_breaks),
+                       date_minor_breaks = date_minor_breaks) +
+      labs(fill = "Processes") +
+      theme_light() +
+      theme(strip.text.x = element_text(colour = "black"),
+            axis.title = element_text(size = 13),
+            panel.grid.major.x = element_line(size=0.7),
+            panel.grid.major.y = element_line(size=0.7))
+  }
+  
+  if (plot_type == "individual"){
+    return(individual)
+  }
+  else if (plot_type == "dominant"){
+    return(dominant)
+  }
+  else if (plot_type == "both"){
+    # number of plots included: reactions + transport + dominant plot
+    nmb_plots <- length(attributes(df.individual)$groups$.rows[[1]]) + 2
+    dominant_height <- 1/nmb_plots
+    # return number of plots to calculate plotsize in walkthrough document
+    return(list(plot=wrap_plots(dominant, individual, ncol=1, heights = c(dominant_height, 1-dominant_height)), nmb_plots=nmb_plots))
+  }
 }
