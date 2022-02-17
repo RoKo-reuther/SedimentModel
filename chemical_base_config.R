@@ -242,7 +242,7 @@ reactions_collection <- list(
           reaction_rate_constants=list(k1=list(value=5e3 , u_unit="m3 mol-1 y-1")),
           shared_terms=list("tempcorr_microbial"),
           reaction_rates=list(equations=list(R19="k1 * tempcorr_microbial * O2 * NH4"), u_unit="mol/V_pw/y"),
-          activated=TRUE),
+          activated=FALSE),
   
   E9=list(abbreviation="E9",
            name="Fe(OH)3 formation",
@@ -258,7 +258,7 @@ reactions_collection <- list(
              equations=list(
                R5_Ox_a="k2 * tempcorr_microbial * O2 * Fe_2"), u_unit="mol/V_pw/y"),
            subsp_def=c("Fe(OH)3"),
-           activated=TRUE),
+           activated=FALSE),
   
   E12=list(abbreviation="E12",
            name="H2S oxidation",
@@ -271,7 +271,7 @@ reactions_collection <- list(
            reaction_rate_constants=list(k5=list(value=1.6e2 , u_unit="m3 mol-1 y-1")),
            shared_terms=list("tempcorr_microbial"),
            reaction_rates=list(equations=list(R8="k5 * tempcorr_microbial * O2 * H2S"), u_unit="mol/V_pw/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E13=list(abbreviation="E13",
           name="Aerobic methane oxidation",
@@ -284,7 +284,7 @@ reactions_collection <- list(
           reaction_rate_constants=list(k6=list(value=10e7 , u_unit="m3 mol-1 y-1")),
           shared_terms=list("tempcorr_microbial"),
           reaction_rates=list(equations=list(R9="k6 * tempcorr_microbial * O2 * CH4"), u_unit="mol/V_pw/y"),
-          activated=TRUE),
+          activated=FALSE),
   
   E14=list(abbreviation="E14",
              name="FeOx-reduction coupled to sulphide oxidation",
@@ -301,7 +301,7 @@ reactions_collection <- list(
                equations=list(R10_Ox_a="k7 * tempcorr_microbial * FeOH3A * H2S"),
                u_unit="mol/V_sf/y"),
              subsp_def=c("Fe(OH)3"),
-             activated=TRUE),
+             activated=FALSE),
   
   E15=list(abbreviation="E15",
            name="FeS formation",
@@ -314,7 +314,7 @@ reactions_collection <- list(
            reaction_rate_constants=list(k9=list(value=1.482e-1, u_unit="m3 mol-1 y-1")),
            shared_terms=list("tempcorr_microbial"),
            reaction_rates=list(equations=list(R11="k9 * tempcorr_microbial * Fe_2 * H2S"), u_unit="mol/V_pw/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E19=list(abbreviation="E19",
            name="SO4-reduction coupled to AOM",
@@ -329,7 +329,7 @@ reactions_collection <- list(
            reaction_rate_constants=list(k13=list(value=10, u_unit="m3 mol-1 y-1")),
            shared_terms=list("tempcorr_microbial"),
            reaction_rates=list(equations=list(R12="k13 * tempcorr_microbial * SO4 * CH4"), u_unit="mol/V_pw/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E27=list(abbreviation="E27",
            name="MnCO3 precipitation",
@@ -341,7 +341,7 @@ reactions_collection <- list(
                "MnCO3"=list(abbreviation="MnCO3", stoic=1))),
            reaction_rate_constants=list(k23=list(value=2.65e-1, u_unit="m3 mol-1 y-1")),
            reaction_rates=list(equations=list(R27="k23 * Mn_2 * DIC*0.1"), u_unit="mol/V_pw/y"), #Note that CO3 is ~10% of DIC
-           activated=TRUE),
+           activated=FALSE),
   
   E28=list(abbreviation="E28",
            name="Mn oxidation",
@@ -358,7 +358,7 @@ reactions_collection <- list(
                R28_a="k24 * tempcorr_microbial * Mn_2 * O2"),
              u_unit="mol/V_pw/y"),
            subsp_def=c("MnO2"),
-           activated=TRUE),
+           activated=FALSE),
   
   E29=list(abbreviation="E29",
              name="MnO2 reduction coupled to Fe oxidation",
@@ -376,7 +376,7 @@ reactions_collection <- list(
                  R29_Ox_aa="k25 * tempcorr_microbial * MnO2A * Fe_2"),
                u_unit="mol/V_sf/y"),
              subsp_def=c("MnO2", "Fe(OH)3"),
-             activated=TRUE),
+             activated=FALSE),
   
   E30=list(abbreviation="E30",
             name="MnO2 reduction coupled to S oxidation",
@@ -394,7 +394,7 @@ reactions_collection <- list(
                 R30_a="k27 * tempcorr_microbial * MnO2A * H2S"),
               u_unit="mol/V_sf/y"),
             subsp_def=c("MnO2"),
-            activated=TRUE),
+            activated=FALSE),
   
   E32=list(abbreviation="E32",
             name="MnO2-reduction coupled AOM",
@@ -412,7 +412,7 @@ reactions_collection <- list(
                 R34_a="k30 * tempcorr_microbial * MnO2A * CH4"),
               u_unit="mol/V_sf/y"),
             subsp_def=c("MnO2"),
-            activated=TRUE),
+            activated=FALSE),
   
   E22=list(abbreviation="E22",
            name="FeCO3 formation",
@@ -426,7 +426,7 @@ reactions_collection <- list(
            shared_terms=list("IAP_FeCO3", "omega_FeCO3"),
            # FeCO3 precipitation occurs when omega>1 at a rate kp*(omega-1) and does not precipitate if in equilibirum, needs to be oversaturated
            reaction_rates=list(equations=list(precip_rate_FeCO3="k18*Fe_2*DIC*ifelse(omega_FeCO3 > 1, (omega_FeCO3-1), 0)"), u_unit="mol/V_pw/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E33=list(abbreviation="E33",
            name="FeCO3 dissolution",
@@ -440,7 +440,7 @@ reactions_collection <- list(
            shared_terms=list("IAP_FeCO3", "omega_FeCO3"),
            # FeCO3 dissolution occurs when omega<1, at a rate proportional to FeCO3 concentration and does not dissolute if no solid phase is present
            reaction_rates=list(equations=list(diss_rate_FeCO3="-k32*FeCO3*ifelse(omega_FeCO3 <= 1, (omega_FeCO3-1), 0)"), u_unit="mol/V_sf/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E24=list(abbreviation="E24",
            name="vivianite formation",
@@ -496,7 +496,7 @@ reactions_collection <- list(
            reaction_rate_constants=list(k3=list(value=6e1, u_unit="m3 mol-1 y-1")),
            shared_terms=list("tempcorr_microbial"),
            reaction_rates=list(equations=list(R6="k3 * tempcorr_microbial * O2 * FeS"), u_unit="mol/V_sf/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E11=list(abbreviation="E11",
            name="FeS2 dissolution",
@@ -510,7 +510,7 @@ reactions_collection <- list(
            reaction_rate_constants=list(k4=list(value=5e3, u_unit="m3 mol-1 y-1")),
            shared_terms=list("tempcorr_microbial"),
            reaction_rates=list(equations=list(R7="k4 * tempcorr_microbial * O2 * FeS2"), u_unit="mol/V_sf/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E16=list(abbreviation="E16",
            name="Pyrite formation",
@@ -523,7 +523,7 @@ reactions_collection <- list(
            reaction_rate_constants=list(k10=list(value=3e-2, u_unit="m3 mol-1 y-1")),
            shared_terms=list("tempcorr_microbial"),
            reaction_rates=list(equations=list(R20="k10 * tempcorr_microbial * FeS * H2S"), u_unit="mol/V_sf/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E17=list(abbreviation="E17",
            name="S0 transformation into SO4 and H2S",
@@ -536,7 +536,7 @@ reactions_collection <- list(
            reaction_rate_constants=list(k11=list(value=1.6e2, u_unit="y-1")),
            shared_terms=list("tempcorr_microbial"),
            reaction_rates=list(equations=list(R14="k11 * tempcorr_microbial * S0"), u_unit="mol/V_sf/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E18=list(abbreviation="E18",
            name="Pyrite formation",
@@ -549,7 +549,7 @@ reactions_collection <- list(
            reaction_rate_constants=list(k12=list(value=7.258e2, u_unit="m3 mol-1 y-1")),
            shared_terms=list("tempcorr_microbial"),
            reaction_rates=list(equations=list(R15="k12 * tempcorr_microbial * FeS * S0"), u_unit="mol/V_sf/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E23=list(abbreviation="E23",
            name="Conversion of Fe carb to FeS",
@@ -563,7 +563,7 @@ reactions_collection <- list(
            reaction_rate_constants=list(k19=list(value=8e-4, u_unit="m3 mol-1 y-1")),
            shared_terms=list("tempcorr_microbial"),
            reaction_rates=list(equations=list(R25="k19 * tempcorr_microbial * FeCO3 * H2S"), u_unit="mol/V_sf/y"),
-           activated=TRUE),
+           activated=FALSE),
   
   E40=list(abbreviation="E40",
            name="Phosphate adsorption (Langmuir equilibrium regulated)",
