@@ -271,8 +271,6 @@ handlers$grid_setup <- function(){
   svf.grid <-setup.prop.1D(func=p.exp, grid=grid, y.0 = 1-por.0, y.inf = 1-por.inf, x.att = por_shape)
   
   # attach diffusive parameters for advection at top
-  #now deliver the same values as porosity does not change with depth; to check correct OM degradation sequences
-  #if porosity changes with depth then it will vary
   dummy <- setup.compaction.1D(v.0 = v, por.0=por.0, por.inf=por.inf, por.grid=por.grid)
   v.grid <- dummy$v   # solid phase advective velocities
   u.grid <- dummy$u   # dissolved phase advective velocities
@@ -306,8 +304,8 @@ handlers$grid_setup <- function(){
   solutes$D_names <- c()
   for (i in occurring_species){
     if (i$phase =="solute"){
-      solutes$names <- c(solutes$names, i$abbr_diffcoeff)
-      solutes$D_names <-  c(solutes$D_names, paste("D", i$abbreviation, ".grid", sep = ""))
+      solutes$names <- c(solutes$names, i$abbr_diffcoeff) # species name used in diffcoeff
+      solutes$D_names <-  c(solutes$D_names, paste("D", i$abbreviation, ".grid", sep = "")) # name of variable to store grid property
     }
   }
   
